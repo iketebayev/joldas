@@ -18,7 +18,7 @@
     <dt>{{ t('req.language') }}</dt><dd>{{ t('lang.' ~ req.language) }}</dd>
     <dt>{{ t('req.group') }}</dt><dd>{{ t('req.people_n', n=req.group_size) }}</dd>
     <dt>{{ t('req.sites') }}</dt><dd>{{ m.site_names(sites, req.site_ids, name_of) or t('req.any_sites') }}</dd>
-    <dt>{{ t('req.price') }}</dt><dd><b>{{ money(req.price_per_day) }}</b> / {{ t('common.day') }}</dd>
+    <dt>{{ t('req.price') }}</dt><dd><b>{{ price_label(req) }}</b> / {{ t('common.day') }}</dd>
     <dt>{{ t('req.client') }}</dt><dd>{{ req.company_name or req.author_name }} <span class="small muted">· {{ t('role.' ~ req.author_type) }}</span>
       {% if req.author_rating %}<div class="small">{{ m.rating(t, req.author_rating, req.author_reviews) }}</div>{% endif %}</dd>
   </dl>

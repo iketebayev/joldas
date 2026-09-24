@@ -33,6 +33,54 @@
     .forEach((el) => el.addEventListener("input", update));
   update();
 })();
+
+// Валюта: пересчёт в тенге по курсу Нацбанка и средняя ставка гида по языку и объектам.
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const signs = {{ currency_sign | tojson }};
+  const L = {{ {
+    'approx': t('req.approx_kzt', amount='__A__'),
+    'avg': t('req.avg_hint', amount='__A__', n='__N__'),
+    'scope_lang_sites': t('req.scope_lang_sites'), 'scope_lang': t('req.scope_lang'), 'scope_all': t('req.scope_all'),
+    'no_data': t('req.avg_none'), 'rates': t('req.rates_note', source='__S__', date='__D__'), 'use': t('req.avg_use')
+  } | tojson }};
+  let hint = null;
+  const fmt = (v, cur) => cur === "KZT"
+    ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸"
+    : signs[cur] + (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString("en-US");
+  function render() {
+    const cur = $("currency").value, price = parseFloat(($("price_per_day").value || "").replace(",", "."));
+    const rate = hint && hint.rates[cur];
+    $("price-kzt").textContent = (cur !== "KZT" && rate && price > 0)
+      ? L.approx.replace("__A__", fmt(price * rate, "KZT")) : "";
+    const box = $("avg-hint");
+    if (!hint) { box.hidden = true; return; }
+    box.hidden = false;
+    if (!hint.avg_kzt) { box.textContent = L.no_data; return; }
+    const inCur = hint.avg_kzt / (rate || 1);
+    box.innerHTML = "📊 " + L.avg.replace("__A__", "<b>" + fmt(inCur, rate ? cur : "KZT") + "</b>").replace("__N__", hint.n)
+      + " <span class='muted'>(" + L["scope_" + hint.scope] + ")</span> "
+      + "<button type='button' class='linkbtn small' id='use-avg'>" + L.use + "</button>"
+      + (hint.source ? "<div class='hint'>" + L.rates.replace("__S__", hint.source).replace("__D__", hint.rate_date || "") + "</div>" : "");
+    $("use-avg").onclick = () => {
+      $("price_per_day").value = rate ? (cur === "KZT" ? Math.round(inCur / 1000) * 1000 : Math.round(inCur)) : hint.avg_kzt;
+      render();
+    };
+  }
+  async function load() {
+    const sites = [...document.querySelectorAll('input[name="site_ids"]:checked')].map((x) => x.value).join(",");
+    try {
+      const r = await fetch(`/api/price-hint?language=${encodeURIComponent($("language").value)}&sites=${sites}`);
+      hint = await r.json();
+    } catch (e) { hint = null; }
+    render();
+  }
+  $("language").addEventListener("change", load);
+  document.querySelectorAll('input[name="site_ids"]').forEach((el) => el.addEventListener("change", load));
+  $("currency").addEventListener("change", render);
+  $("price_per_day").addEventListener("input", render);
+  load();
+})();
 </script>
 {% endblock %}
 {% block content %}
@@ -53,7 +101,15 @@
     <label><input type="checkbox" name="site_ids" value="{{ s.id }}"> {{ name_of(s) }}</label>{% endfor %}</div>
   <div class="grid g2" style="gap:12px">
     <div><label for="group_size">{{ t('req.group') }}</label><input id="group_size" name="group_size" type="number" min="1" value="2" required></div>
-    <div><label for="price_per_day">{{ t('req.price') }}, ₸</label><input id="price_per_day" name="price_per_day" type="number" min="1000" step="1000" required>
+    <div><label for="price_per_day">{{ t('req.price') }}</label>
+      <div class="price-group">
+        <input id="price_per_day" name="price_per_day" type="number" min="1" step="any" inputmode="decimal" required>
+        <select id="currency" name="currency" aria-label="{{ t('req.currency') }}">
+          {% for c in currencies %}<option value="{{ c }}" {{ 'selected' if (c == 'USD' and user.role == 'tourist') or (c == 'KZT' and user.role != 'tourist') }}>{{ c }} {{ currency_sign[c] }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="hint" id="price-kzt"></div>
+      <div class="avg-hint" id="avg-hint" hidden></div>
       <div class="hint">{{ t('req.price_hint') }}</div></div>
   </div>
   <div class="park-fee" id="park-fee">

@@ -50,3 +50,8 @@ FEE_TRAIL_MRP = 0.2             # туристская тропа, с челов
 FEE_FOREIGN_MULT = 2            # иностранцам — двойной тариф
 FEE_VEHICLE_MRP = {"car": 0.7, "minibus": 2.7, "bus": 5.0, "bus_big": 7.0}
 SEATS_PER_CAR = 4
+
+# Валюты цены в заявке; внутри всё считается в тенге.
+CURRENCIES = ("KZT", "USD", "EUR", "CNY")
+CURRENCY_SIGN = {"KZT": "₸", "USD": "$", "EUR": "€", "CNY": "¥"}
+RATES_REFRESH_HOURS = 6

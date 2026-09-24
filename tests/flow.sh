@@ -202,4 +202,16 @@ curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from
 NR=$(q "SELECT max(id) FROM requests")
 ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$NR | grep -c 'Кроме ставки гида')" "0" "маршрут вне парка — без платы за въезд"
 
+
+echo "21. Цена в валюте: пересчёт в тенге по курсу, подсказка средней ставки"
+USD=$(q "SELECT kzt FROM exchange_rates WHERE code='USD'")
+ok "$( [ -n "$USD" ] && echo yes )" "yes" "курс USD загружен ($USD ₸)"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&language=en&group_size=2&price_per_day=60&currency=USD"
+UR=$(q "SELECT max(id) FROM requests")
+EXPK=$(python3 -c "print(round(60*$USD))")
+ok "$(q "SELECT currency||'/'||price_original::int||'/'||price_per_day FROM requests WHERE id=$UR")" "USD/60/$EXPK" "60 USD сохранены как $EXPK ₸"
+ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests | grep -c '\$60')" "1" "гид видит исходную сумму в долларах рядом с тенге"
+HINT=$(curl -s "$B/api/price-hint?language=en&sites=$BZ")
+ok "$(echo "$HINT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d['avg_kzt'] and d['rates']['USD'] and d['scope'] else d)")" "ok" "подсказка: средняя ставка и курсы"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

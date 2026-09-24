@@ -23,7 +23,7 @@
         <span class="badge">{{ t('role.' ~ r.author_type) }}</span>
         {% if r.urgent %}<span class="badge urgent">{{ t('req.urgent_badge') }}</span>{% endif %}
         {% if r.offered %}<span class="badge st-confirmed">{{ t('feed.offered') }}</span>{% endif %}</div>
-      <div class="price">{{ money(r.price_per_day) }} <span class="small muted">/ {{ t('common.day') }}</span></div>
+      <div class="price">{{ price_label(r) }} <span class="small muted">/ {{ t('common.day') }}</span></div>
     </div>
     <div><b>{{ m.dates(r) }}</b> · {{ t('req.people_n', n=r.group_size) }}</div>
     <div class="small muted">{{ m.site_names(sites, r.site_ids, name_of) or t('req.any_sites') }}</div>

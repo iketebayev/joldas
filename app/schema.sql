@@ -214,3 +214,15 @@ CREATE TABLE IF NOT EXISTS assignment_addons (
 
 -- Въезд в госпарк: сумма фиксируется при выборе гида; платит гид, возмещает турист отдельно.
 ALTER TABLE assignments ADD COLUMN IF NOT EXISTS entry_fee INT NOT NULL DEFAULT 0;
+
+-- Курсы валют: 1 единица валюты = kzt тенге. Обновляются каждые 6 часов (services/rates.py).
+CREATE TABLE IF NOT EXISTS exchange_rates (
+    code       TEXT PRIMARY KEY,
+    kzt        NUMERIC(12,4) NOT NULL,
+    source     TEXT NOT NULL,
+    rate_date  TEXT,
+    fetched_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Валюта, в которой заказчик указал цену; price_per_day всегда хранится в тенге.
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'KZT';
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS price_original NUMERIC(12,2);

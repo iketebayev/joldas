@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import GUIDE_LANGS, PARK_SITES
+from ..config import CURRENCIES, GUIDE_LANGS, PARK_SITES
 from ..db import pool
 from .. import academy
-from ..services import fees, orders, route, safety
+from ..services import fees, orders, rates, route, safety
 from ..services.payments import deposit_for
 from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
@@ -61,7 +61,8 @@ async def new_form(request: Request):
         return redirect("/pricing")
     sites = await all_sites()
     return await render(request, "requests/new.html", sites=sites, fee_cfg=fees.client_config(),
-                        park_site_ids=[s["id"] for s in sites if s["slug"] in PARK_SITES])
+                        park_site_ids=[s["id"] for s in sites if s["slug"] in PARK_SITES],
+                        currencies=CURRENCIES)
 
 
 @router.post("/requests/new")
@@ -71,11 +72,18 @@ async def create(request: Request):
     try:
         d_from = date.fromisoformat(form["date_from"])
         d_to = date.fromisoformat(form.get("date_to") or form["date_from"])
-        price = int(str(form["price_per_day"]).replace(" ", ""))
+        price_original = float(str(form["price_per_day"]).replace(" ", "").replace(",", "."))
         group = int(form.get("group_size") or 1)
     except (KeyError, ValueError):
         flash(request, "req.invalid", "error")
         return redirect("/requests/new")
+    currency = form.get("currency") if form.get("currency") in CURRENCIES else "KZT"
+    # Цена хранится в тенге по текущему курсу; исходная сумма и валюта — для показа.
+    rate = (await rates.current(pool()))["rates"].get(currency)
+    if not rate:
+        flash(request, "req.no_rate", "error")
+        return redirect("/requests/new")
+    price = round(price_original * rate)
     language = form.get("language")
     if d_to < d_from or d_from < date.today() or price <= 0 or group <= 0 or language not in GUIDE_LANGS:
         flash(request, "req.invalid", "error")
@@ -100,6 +108,8 @@ async def create(request: Request):
             "note": (form.get("note") or "").strip() or None,
             "urgent": user["role"] == "company" and form.get("urgent") == "on",
         })
+        await conn.execute("UPDATE requests SET currency=$2, price_original=$3 WHERE id=$1",
+                           rid, currency, round(price_original, 2))
         await safety.save(conn, rid, safety_data)
     if notified:
         flash(request, "req.created_n", n=notified)

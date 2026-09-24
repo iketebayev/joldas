@@ -10,8 +10,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from . import config
 from .auth import LoginRequired
 from .db import close_pool, init_pool, pool
-from .services import safety
-from .routers import academy, account, auth, billing, dashboard, guides, public, requests, reviews
+from .config import RATES_REFRESH_HOURS
+from .services import rates, safety
+from .routers import academy, account, api, auth, billing, dashboard, guides, public, requests, reviews
 from .web import redirect, render
 
 log = logging.getLogger("app")
@@ -30,12 +31,25 @@ async def _purge_loop():
         await asyncio.sleep(6 * 3600)
 
 
+async def _rates_loop():
+    """Курсы валют: при старте и дальше каждые RATES_REFRESH_HOURS часов."""
+    while True:
+        try:
+            async with pool().acquire() as conn:
+                src = await rates.refresh(conn)
+            log.info("exchange rates refreshed from %s", src)
+        except Exception as e:
+            log.warning("rates refresh failed: %s", e)
+        await asyncio.sleep(RATES_REFRESH_HOURS * 3600)
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_pool()
-    task = asyncio.create_task(_purge_loop())
+    tasks = [asyncio.create_task(_purge_loop()), asyncio.create_task(_rates_loop())]
     yield
-    task.cancel()
+    for task in tasks:
+        task.cancel()
     await close_pool()
 
 
@@ -46,7 +60,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-for r in (public, auth, account, academy, guides, requests, reviews, billing, dashboard):
+for r in (public, auth, account, academy, api, guides, requests, reviews, billing, dashboard):
     app.include_router(r.router)
 
 
