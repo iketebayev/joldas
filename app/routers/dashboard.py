@@ -65,6 +65,12 @@ async def dashboard(request: Request):
                   (SELECT coalesce(sum(amount),0) FROM payments WHERE kind='subscription') AS subscriptions
            FROM assignments WHERE status <> 'cancelled'"""
     )
+    # Турпоток по странам — только страны, без данных о здоровье.
+    by_country = await db.fetch(
+        """SELECT c AS country, count(*) AS requests, sum(r.group_size) AS people
+           FROM request_safety s JOIN requests r ON r.id=s.request_id, unnest(s.countries) c
+           WHERE r.status <> 'cancelled' GROUP BY c ORDER BY people DESC, requests DESC"""
+    )
     reports = await db.fetch(
         """SELECT rr.id AS report_id, rr.reason, r.id, r.overall, r.text, u.name AS target_name
            FROM review_reports rr JOIN reviews r ON r.id=rr.review_id JOIN users u ON u.id=r.target_id
@@ -75,7 +81,7 @@ async def dashboard(request: Request):
         request, "dashboard/index.html", totals=totals, fill_rate=fill_rate, by_lang=by_lang,
         months=months, heat_langs=heat_langs, heat_map=heat_map,
         sites_json=[dict(s) for s in sites], fin=fin,
-        reports=reports, broadcasts=broadcasts,
+        reports=reports, broadcasts=broadcasts, by_country=by_country,
     )
 
 

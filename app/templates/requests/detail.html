@@ -20,6 +20,13 @@
       {% if req.author_rating %}<div class="small">{{ m.rating(t, req.author_rating, req.author_reviews) }}</div>{% endif %}</dd>
   </dl>
   {% if req.note %}<p class="small" style="margin-top:14px;white-space:pre-line">{{ req.note }}</p>{% endif %}
+  {% if sf and sf.countries %}
+    <div class="tags" style="margin-top:12px"><span class="small muted">{{ t('safety.countries_short') }}:</span>
+      {% for c in sf.countries %}<span class="badge">{{ t('country.' ~ c) }}</span>{% endfor %}</div>
+  {% endif %}
+  {% if sf and sf.consent_at and not brief %}
+    <div class="lock" style="margin-top:12px">🔒 {{ t('safety.locked') }}</div>
+  {% endif %}
 </div>
 
 <div class="card">
@@ -34,7 +41,13 @@
           <div style="margin-top:4px">{{ m.level(t, guide.level) }}</div></div>
       </div>
     {% endif %}
-    <p class="small">{{ t('common.days_n', n=assignment.days) }} × {{ money(assignment.price_per_day) }} = <b>{{ money(assignment.total) }}</b></p>
+    <div class="small">
+      <div class="row between"><span>{{ t('common.days_n', n=assignment.days) }} × {{ money(assignment.price_per_day) }}</span><span>{{ money(assignment.days * assignment.price_per_day) }}</span></div>
+      {% for a in chosen_addons %}
+        <div class="row between"><span>{{ t('addon.' ~ a.kind) }}{% if a.per == 'person' %} × {{ a.qty }}{% endif %}</span><span>{{ money(a.amount) }}</span></div>
+      {% endfor %}
+      <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('addon.total') }}</b><b>{{ money(assignment.total) }}</b></div>
+    </div>
     <p>{{ m.status(t, assignment.status) }}</p>
 
     {% if contacts %}
@@ -106,7 +119,17 @@
           <div class="price" style="font-weight:800">{{ money(o.price_per_day) }}</div>
           {% if o.price_per_day != req.price_per_day %}<div class="small muted">{{ t('offers.counter_badge') }}</div>{% endif %}
           {% if is_owner and req.status == 'open' and o.status == 'pending' %}
-            <form method="post" action="/offers/{{ o.id }}/choose" style="margin-top:6px"><button class="btn small">{{ t('offers.choose') }}</button></form>
+            <form method="post" action="/offers/{{ o.id }}/choose" style="margin-top:6px">
+              {% set extras = offer_addons.get(o.guide_id, []) %}
+              {% if extras %}
+                <div class="checks addon-pick" style="justify-content:flex-end;margin-bottom:8px">
+                  {% for a in extras %}<label><input type="checkbox" name="addon_ids" value="{{ a.id }}">
+                    {{ t('addon.' ~ a.kind) }} +{{ money(a.price * (req.group_size if a.per == 'person' else 1)) }}</label>{% endfor %}
+                </div>
+              {% endif %}
+              <button class="btn small">{{ t('offers.choose') }}</button></form>
+          {% elif offer_addons.get(o.guide_id) %}
+            <div class="small muted" style="margin-top:6px">{{ t('addon.available_n', n=offer_addons.get(o.guide_id) | length) }}</div>
           {% endif %}
         </div>
       </div>
@@ -124,4 +147,30 @@
   {% endif %}
 </div>
 </div>
+{% if brief and (brief.risks or brief.diet or brief.sites or show_health) %}
+<div class="card safety-brief" style="margin-top:16px">
+  <div class="row between"><h2 style="margin:0">🛡 {{ t('safety.brief_title') }}</h2>
+    <span class="small muted">{{ t('safety.brief_private') }}</span></div>
+  {% if brief.risks %}
+    <h3 style="margin-top:16px">{{ t('safety.brief_health') }}</h3>
+    <ul>{% for x in brief.risks %}<li>{{ x }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if brief.diet %}
+    <h3 style="margin-top:16px">{{ t('safety.brief_food') }}</h3>
+    <ul>{% for x in brief.diet %}<li>{{ x }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if brief.sites %}
+    <h3 style="margin-top:16px">{{ t('safety.brief_route') }}</h3>
+    <ul>{% for name, items in brief.sites %}{% for x in items %}<li><b>{{ name }}:</b> {{ x }}</li>{% endfor %}{% endfor %}</ul>
+  {% endif %}
+  <h3 style="margin-top:16px">{{ t('safety.brief_season') }}</h3>
+  <p style="margin:0">{{ brief.season }} <a href="/academy#fauna">{{ t('safety.fauna_link') }} →</a></p>
+  {% if show_health and (sf.ice_name or sf.note) %}
+    <div class="contacts" style="margin-top:16px">
+      {% if sf.ice_name %}<b>{{ t('safety.ice') }}:</b> {{ sf.ice_name }} · <a href="tel:{{ sf.ice_phone }}">{{ sf.ice_phone }}</a>{% endif %}
+      {% if sf.note %}<div style="margin-top:6px"><b>{{ t('safety.note_short') }}:</b> {{ sf.note }}</div>{% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endif %}
 {% endblock %}

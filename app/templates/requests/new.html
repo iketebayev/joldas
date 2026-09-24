@@ -23,6 +23,29 @@
   </div>
   <label for="note">{{ t('req.note') }}</label>
   <textarea id="note" name="note" placeholder="{{ t('req.note_placeholder') }}"></textarea>
+  <fieldset class="safety-box">
+    <legend>🛡 {{ t('safety.title') }}</legend>
+    <p class="hint" style="margin-top:0">{{ t('safety.intro') }}</p>
+    <label>{{ t('safety.countries') }}</label>
+    <div class="checks">{% for c in countries %}
+      <label><input type="checkbox" name="countries" value="{{ c }}"> {{ t('country.' ~ c) }}</label>{% endfor %}</div>
+    <label>{{ t('safety.diet') }}</label>
+    <div class="checks">{% for d in diets %}
+      <label><input type="checkbox" name="diet" value="{{ d }}"> {{ t('diet.' ~ d) }}</label>{% endfor %}</div>
+    <label>{{ t('safety.risks') }}</label>
+    <div class="checks">{% for r in risks %}
+      <label><input type="checkbox" name="risks" value="{{ r }}"> {{ t('risk.' ~ r) }}</label>{% endfor %}
+      <label><input type="checkbox" name="epipen"> {{ t('safety.epipen') }}</label></div>
+    <div class="grid g2" style="gap:12px">
+      <div><label for="ice_name">{{ t('safety.ice_name') }}</label><input id="ice_name" name="ice_name" type="text"></div>
+      <div><label for="ice_phone">{{ t('safety.ice_phone') }}</label><input id="ice_phone" name="ice_phone" type="tel" placeholder="+49 …"></div>
+    </div>
+    <div class="hint">{{ t('safety.ice_hint') }}</div>
+    <label for="note_safety">{{ t('safety.note') }}</label>
+    <textarea id="note_safety" name="note_safety" style="min-height:60px"></textarea>
+    <div class="checks" style="margin-top:12px"><label style="border-color:var(--accent)"><input type="checkbox" name="consent"> {{ t('safety.consent') }}</label></div>
+    <div class="hint">{{ t('safety.privacy', days=30) }}</div>
+  </fieldset>
   {% if user.role == 'company' %}
     <div class="checks" style="margin-top:14px"><label><input type="checkbox" name="urgent"> {{ t('req.urgent') }}</label></div>
   {% else %}

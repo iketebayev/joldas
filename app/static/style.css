@@ -168,3 +168,13 @@ footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--m
 .me { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 800;
   display: inline-flex; align-items: center; justify-content: center; font-size: 15px; flex: none; }
 .me:hover, .me.on { text-decoration: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.safety-box { border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px 16px; margin-top: 18px; background: #fffdfa; }
+.safety-box legend { font-weight: 700; padding: 0 6px; }
+.safety-brief { border-color: #efc9c9; }
+.safety-brief ul { margin: 6px 0 0; padding-left: 20px; }
+.safety-brief li { margin-bottom: 6px; }
+.addon-pick label { font-size: 13px; padding: 6px 10px; }
+
+.badge.wrap { white-space: normal; line-height: 1.35; }
+.safety-box { min-width: 0; max-width: 100%; }

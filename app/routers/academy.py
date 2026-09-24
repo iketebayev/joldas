@@ -17,6 +17,7 @@ async def index(request: Request):
         request, "academy/index.html", general=academy.GENERAL[lang], cards=cards,
         phrases=academy.PHRASES, read=academy.READ_GENERAL, rules_source=academy.RULES_SOURCE,
         incident_sources=academy.INCIDENT_SOURCES, fee_source=academy.FEE_SOURCE,
+        fauna=academy.FAUNA[lang], fauna_sources=academy.FAUNA_SOURCES,
     )
 
 

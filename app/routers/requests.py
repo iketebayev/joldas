@@ -5,9 +5,9 @@ from fastapi import APIRouter, HTTPException, Request
 from ..auth import require_user
 from ..config import GUIDE_LANGS
 from ..db import pool
-from ..services import orders
+from ..services import orders, safety
 from ..services.payments import deposit_for
-from ..web import flash, redirect, render
+from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
 
 router = APIRouter()
@@ -77,6 +77,12 @@ async def create(request: Request):
         flash(request, "req.invalid", "error")
         return redirect("/requests/new")
 
+    try:
+        safety_data = safety.parse(form)
+    except safety.SafetyError as e:
+        flash(request, str(e), "error")
+        return redirect("/requests/new")
+
     db = pool()
     async with db.acquire() as conn, conn.transaction():
         if user["role"] == "company" and not await orders.company_can_post(conn, user["id"]):
@@ -90,6 +96,7 @@ async def create(request: Request):
             "note": (form.get("note") or "").strip() or None,
             "urgent": user["role"] == "company" and form.get("urgent") == "on",
         })
+        await safety.save(conn, rid, safety_data)
     flash(request, "req.created")
     return redirect(f"/requests/{rid}")
 
@@ -158,10 +165,34 @@ async def detail(request: Request, rid: int):
             "SELECT id FROM reviews WHERE assignment_id=$1 AND author_id=$2", assignment["id"], user["id"]
         )
     deposit = deposit_for(assignment["total"]) if assignment else 0
+
+    # Допуслуги: у каждого отклика — допы гида; у заказа — выбранные.
+    offer_addons = {}
+    if offers:
+        for a in await db.fetch(
+            "SELECT * FROM guide_addons WHERE active AND guide_id = ANY($1::int[]) ORDER BY price",
+            [o["guide_id"] for o in offers],
+        ):
+            offer_addons.setdefault(a["guide_id"], []).append(a)
+    chosen_addons = []
+    if assignment:
+        chosen_addons = await db.fetch(
+            "SELECT * FROM assignment_addons WHERE assignment_id=$1 ORDER BY amount DESC", assignment["id"]
+        )
+
+    # Анкета безопасности: страны видны всем, кто видит заявку; здоровье и ICE —
+    # только автору и назначенному гиду после подтверждения. Акимату — не показываем.
+    sf = await db.fetchrow("SELECT * FROM request_safety WHERE request_id=$1", rid)
+    guide_confirmed = is_assigned_guide and assignment["status"] in ("confirmed", "done")
+    show_health = bool(sf) and (is_owner or guide_confirmed)
+    all_sites_rows = await all_sites()
+    brief = safety.brief(req, sf, all_sites_rows, lang_of(request)) if (is_owner or guide_confirmed) else None
     return await render(
         request, "requests/detail.html", req=req, offers=offers, assignment=assignment,
         guide=guide, contacts=contacts, is_owner=is_owner, is_assigned_guide=is_assigned_guide,
-        my_offer=my_offer, my_review=my_review, deposit=deposit, sites=await all_sites(),
+        my_offer=my_offer, my_review=my_review, deposit=deposit, sites=all_sites_rows,
+        sf=sf, show_health=show_health, brief=brief,
+        offer_addons=offer_addons, chosen_addons=chosen_addons,
     )
 
 
@@ -193,9 +224,11 @@ async def offer(request: Request, rid: int):
 @router.post("/offers/{oid}/choose")
 async def choose(request: Request, oid: int):
     user = await require_user(request, "company", "tourist")
+    form = await request.form()
+    addon_ids = [int(x) for x in form.getlist("addon_ids") if str(x).isdigit()]
     db = pool()
     async with db.acquire() as conn, conn.transaction():
-        await orders.choose_offer(conn, user, oid)
+        await orders.choose_offer(conn, user, oid, addon_ids)
         rid = await conn.fetchval("SELECT request_id FROM offers WHERE id=$1", oid)
     flash(request, "offer.chosen_tourist" if user["role"] == "tourist" else "offer.chosen_company")
     return redirect(f"/requests/{rid}")

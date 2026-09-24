@@ -23,6 +23,10 @@
     {% if g.external_links %}<dt>{{ t('profile.external') }}</dt><dd class="small">{{ g.external_links }}</dd>{% endif %}
   </dl>
   <p class="small muted" style="margin-top:14px">{{ t('level.hint_' ~ g.level) }}</p>
+  {% if addons %}
+    <h3 style="margin-top:18px">{{ t('addon.title') }}</h3>
+    <div class="tags">{% for a in addons %}<span class="badge">{{ t('addon.' ~ a.kind) }} · {{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</span>{% endfor %}</div>
+  {% endif %}
   {% if not user or user.id != g.id %}
     <div style="margin-top:16px">
       <a class="btn" href="/requests/new">+ {{ t('req.new_btn') }}</a>

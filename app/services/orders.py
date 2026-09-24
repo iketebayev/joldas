@@ -71,9 +71,10 @@ async def make_offer(conn, guide, req, price: int, message: str | None) -> None:
     await notify(conn, req["author_id"], "n.new_offer", f"/requests/{req['id']}", name=guide["name"])
 
 
-async def choose_offer(conn, owner, offer_id: int) -> int:
+async def choose_offer(conn, owner, offer_id: int, addon_ids: list[int] | None = None) -> int:
     offer = await conn.fetchrow(
-        """SELECT o.*, r.author_id, r.author_type, r.date_from, r.date_to, r.status AS rstatus
+        """SELECT o.*, r.author_id, r.author_type, r.date_from, r.date_to, r.status AS rstatus,
+                  r.group_size
            FROM offers o JOIN requests r ON r.id=o.request_id WHERE o.id=$1""",
         offer_id,
     )
@@ -92,7 +93,17 @@ async def choose_offer(conn, owner, offer_id: int) -> int:
         raise HTTPException(409, detail="Guide is already booked for these dates")
 
     days = (offer["date_to"] - offer["date_from"]).days + 1
-    total = offer["price_per_day"] * days
+    # Допуслуги: берём только активные допы этого гида, цену фиксируем снимком.
+    addons = []
+    if addon_ids:
+        rows = await conn.fetch(
+            "SELECT * FROM guide_addons WHERE guide_id=$1 AND active AND id = ANY($2::int[])",
+            offer["guide_id"], addon_ids,
+        )
+        for a in rows:
+            qty = offer["group_size"] if a["per"] == "person" else 1
+            addons.append((a, qty, a["price"] * qty))
+    total = offer["price_per_day"] * days + sum(amount for _, _, amount in addons)
     status = "awaiting_payment" if offer["author_type"] == "tourist" else "confirmed"
     aid = await conn.fetchval(
         """INSERT INTO assignments (request_id, offer_id, guide_id, client_id,
@@ -101,6 +112,12 @@ async def choose_offer(conn, owner, offer_id: int) -> int:
         offer["request_id"], offer_id, offer["guide_id"], owner["id"],
         offer["price_per_day"], days, total, status,
     )
+    for a, qty, amount in addons:
+        await conn.execute(
+            """INSERT INTO assignment_addons (assignment_id, addon_id, kind, price, per, qty, amount)
+               VALUES ($1,$2,$3,$4,$5,$6,$7)""",
+            aid, a["id"], a["kind"], a["price"], a["per"], qty, amount,
+        )
     await conn.execute("UPDATE offers SET status='chosen' WHERE id=$1", offer_id)
     await conn.execute(
         "UPDATE offers SET status='rejected' WHERE request_id=$1 AND id<>$2 AND status='pending'",

@@ -31,3 +31,13 @@ CANCEL_REFUND_HOURS = 48
 # Цены — гипотеза для MVP, реальные платежи не подключены.
 SEASON_PRICE = 29900     # ₸ в месяц, тариф «Сезон» для турфирм
 URGENT_PRICE = 4900      # ₸ за поднятие заявки
+
+# Анкета безопасности
+COUNTRIES = ("CN", "DE", "FR", "GB", "US", "IT", "ES", "NL", "PL", "CH", "AT", "RU", "KR", "JP",
+             "TR", "AE", "SA", "IN", "IL", "UZ", "KG", "AZ", "GE", "AU", "CA")
+DIETS = ("vegetarian", "vegan", "halal", "lactose", "gluten", "nuts", "seafood", "no_trad_dairy")
+RISKS = ("anaphylaxis", "asthma", "cardio", "motion_sickness", "drug_allergy")
+SAFETY_RETENTION_DAYS = 30
+
+# Допуслуги гидов
+ADDON_KINDS = ("drone", "photo", "reel", "camping", "starlink", "catering")

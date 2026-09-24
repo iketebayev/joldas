@@ -130,4 +130,49 @@ DB1=$(q "SELECT max(id) FROM requests")
 post guide /requests/$DB1/offer "action=accept" >/dev/null
 ok "$(post comp /offers/$(q "SELECT id FROM offers WHERE request_id=$DB1 AND guide_id=$AIDOS")/choose)" "409" "Айдос уже занят на эти даты — выбор отклонён"
 
+
+echo "15. Анкета безопасности: без согласия — отказ, с согласием — сохранена"
+D3=$(date -d '+40 days' +%F); D4=$(date -d '+41 days' +%F)
+N0=$(q "SELECT count(*) FROM requests")
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&risks=anaphylaxis&epipen=on&ice_name=Hans&ice_phone=%2B491701234567"
+ok "$(q "SELECT count(*) FROM requests")" "$N0" "без согласия заявка не создана"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&countries=DE&risks=anaphylaxis&epipen=on&ice_name=Hans+Safety&ice_phone=%2B491701234567&consent=on"
+SR=$(q "SELECT max(id) FROM requests")
+ok "$(q "SELECT risks[1]||'/'||epipen||'/'||(consent_at IS NOT NULL) FROM request_safety WHERE request_id=$SR")" "anaphylaxis/true/true" "анкета сохранена с согласием"
+
+echo "16. Допуслуги: выбор с допами → сумма и депозит"
+post guide /requests/$SR/offer "action=accept" >/dev/null
+post timur /requests/$SR/offer "action=accept" >/dev/null
+ok "$(curl -s -b $D/timur $B/requests/$SR | grep -c 'Hans Safety')" "0" "другой гид не видит контакт ЧП"
+DRONE=$(q "SELECT id FROM guide_addons WHERE guide_id=$AIDOS AND kind='drone'")
+CAT=$(q "SELECT id FROM guide_addons WHERE guide_id=$AIDOS AND kind='catering'")
+DP=$(q "SELECT price FROM guide_addons WHERE id=$DRONE"); CP=$(q "SELECT price FROM guide_addons WHERE id=$CAT")
+SO=$(q "SELECT id FROM offers WHERE request_id=$SR AND guide_id=$AIDOS")
+post tour /offers/$SO/choose "addon_ids=$DRONE&addon_ids=$CAT" >/dev/null
+SA=$(q "SELECT id FROM assignments WHERE request_id=$SR AND status<>'cancelled'")
+EXP=$(( 20000*2 + DP + 4*CP ))
+ok "$(q "SELECT total FROM assignments WHERE id=$SA")" "$EXP" "итого = 2 дня × 20 000 + дрон + 4 × кейтеринг ($EXP)"
+ok "$(curl -s -b $D/guide $B/requests/$SR | grep -c 'Hans Safety')" "0" "назначенный гид до оплаты депозита контакт ЧП не видит"
+post tour /assignments/$SA/pay >/dev/null
+ok "$(q "SELECT amount FROM payments WHERE assignment_id=$SA AND kind='deposit'")" "$(( (EXP*10+50)/100 ))" "депозит 10% от суммы с допами"
+PAGE=$(curl -s -b $D/guide -H "Cookie: lang=ru" $B/requests/$SR)
+ok "$(echo "$PAGE" | grep -c 'Hans Safety')" "1" "после подтверждения назначенный гид видит контакт ЧП"
+ok "$(echo "$PAGE" | grep -c 'Риск анафилаксии')" "1" "в брифе есть действие по анафилаксии"
+
+echo "17. Акимат: страна видна, здоровье — нет"
+ok "$(curl -s -b $D/admin $B/requests/$SR | grep -c 'Hans Safety')" "0" "админ не видит контакт ЧП"
+ok "$(curl -s -b $D/admin -H "Cookie: lang=ru" $B/dashboard | grep -q 'Германия' && echo yes)" "yes" "страна в дашборде"
+
+echo "18. Удаление анкеты через 30 дней после тура"
+q "UPDATE requests SET date_from=current_date-45, date_to=current_date-44 WHERE id=$SR" >/dev/null
+docker compose exec -T app python -c "
+import asyncio
+from app.db import init_pool, pool
+from app.services.safety import purge
+async def m():
+    await init_pool()
+    async with pool().acquire() as c: print(await purge(c))
+asyncio.run(m())" >/dev/null
+ok "$(q "SELECT count(*) FROM request_safety WHERE request_id=$SR")" "0" "анкета удалена"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

@@ -175,3 +175,39 @@ CREATE TABLE IF NOT EXISTS broadcasts (
     created_by INT REFERENCES users(id),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Анкета безопасности группы. Отдельная таблица: доступ только автору и назначенному гиду,
+-- удаляется через 30 дней после тура (services/safety.py::purge).
+CREATE TABLE IF NOT EXISTS request_safety (
+    request_id INT PRIMARY KEY REFERENCES requests(id) ON DELETE CASCADE,
+    countries  TEXT[] NOT NULL DEFAULT '{}',
+    diet       TEXT[] NOT NULL DEFAULT '{}',
+    risks      TEXT[] NOT NULL DEFAULT '{}',
+    epipen     BOOLEAN NOT NULL DEFAULT FALSE,
+    ice_name   TEXT,
+    ice_phone  TEXT,
+    note       TEXT,
+    consent_at TIMESTAMPTZ
+);
+
+-- Допуслуги гида и их снимок в заказе на момент выбора.
+CREATE TABLE IF NOT EXISTS guide_addons (
+    id       SERIAL PRIMARY KEY,
+    guide_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    kind     TEXT NOT NULL CHECK (kind IN ('drone','photo','reel','camping','starlink','catering')),
+    price    INT  NOT NULL CHECK (price > 0),
+    per      TEXT NOT NULL CHECK (per IN ('tour','person')),
+    active   BOOLEAN NOT NULL DEFAULT TRUE,
+    UNIQUE (guide_id, kind)
+);
+
+CREATE TABLE IF NOT EXISTS assignment_addons (
+    assignment_id INT NOT NULL REFERENCES assignments(id) ON DELETE CASCADE,
+    addon_id      INT REFERENCES guide_addons(id) ON DELETE SET NULL,
+    kind          TEXT NOT NULL,
+    price         INT  NOT NULL,
+    per           TEXT NOT NULL,
+    qty           INT  NOT NULL,
+    amount        INT  NOT NULL,
+    PRIMARY KEY (assignment_id, kind)
+);

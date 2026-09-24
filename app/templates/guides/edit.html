@@ -30,4 +30,25 @@
   <input id="external_links" name="external_links" type="text" value="{{ g.external_links or '' }}" placeholder="TripAdvisor, GetYourGuide…">
   <button class="btn" style="margin-top:18px">{{ t('common.save') }}</button>
 </form>
+
+<div class="card" id="addons" style="margin-top:16px">
+  <h3>{{ t('addon.title') }}</h3>
+  <p class="small muted">{{ t('addon.hint') }}</p>
+  {% for a in addons %}
+    <div class="offer">
+      <div><b>{{ t('addon.' ~ a.kind) }}</b><div class="small muted">{{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</div></div>
+      <form method="post" action="/profile/addons/{{ a.id }}/delete"><button class="btn small danger">{{ t('addon.remove') }}</button></form>
+    </div>
+  {% else %}
+    <p class="small muted">{{ t('addon.none') }}</p>
+  {% endfor %}
+  <form method="post" action="/profile/addons" class="grid g3" style="gap:10px;margin-top:12px;align-items:end">
+    <div><label for="kind">{{ t('addon.kind') }}</label>
+      <select id="kind" name="kind">{% for k in addon_kinds %}<option value="{{ k }}">{{ t('addon.' ~ k) }}</option>{% endfor %}</select></div>
+    <div><label for="aprice">{{ t('addon.price') }}, ₸</label><input id="aprice" name="price" type="number" min="500" step="500" required></div>
+    <div><label for="per">{{ t('addon.per') }}</label>
+      <select id="per" name="per"><option value="tour">{{ t('addon.per_tour') }}</option><option value="person">{{ t('addon.per_person') }}</option></select></div>
+    <div><button class="btn block">{{ t('addon.add') }}</button></div>
+  </form>
+</div>
 {% endblock %}

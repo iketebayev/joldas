@@ -29,6 +29,28 @@
 <h2>{{ t('ac.etiquette_title') }}</h2>
 <div class="card"><ul>{% for r in general.etiquette %}<li>{{ r }}</li>{% endfor %}</ul></div>
 
+<h2 id="fauna">{{ t('ac.fauna_title') }}</h2>
+<div class="flash error" style="font-weight:600">⚠️ {{ t('ac.fauna_disclaimer') }}</div>
+<div class="grid g2">
+  <div class="card"><h3>{{ t('ac.fauna_species') }}</h3>
+    {% for name, text in fauna.species %}<p style="margin:10px 0 0"><b>{{ name }}.</b> <span class="small">{{ text }}</span></p>{% endfor %}</div>
+  <div class="card"><h3>{{ t('ac.fauna_seasons') }}</h3>
+    {% for sn in ['spring','summer','autumn','winter'] %}<p class="small" style="margin:10px 0 0">{{ t('safety.season_' ~ sn) }}</p>{% endfor %}
+    <h3 style="margin-top:18px">{{ t('ac.fauna_camp') }}</h3>
+    <ul class="small">{% for x in fauna.camp %}<li>{{ x }}</li>{% endfor %}</ul></div>
+</div>
+<div class="grid g3" style="margin-top:16px">
+  {% for title, do, dont in fauna.aid %}
+  <div class="card"><h3>🩹 {{ title }}</h3>
+    <ol class="small" style="padding-left:18px">{% for x in do %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ol>
+    {% for x in dont %}<p class="small" style="margin:8px 0 0;color:var(--bad)"><b>✕</b> {{ x }}</p>{% endfor %}</div>
+  {% endfor %}
+</div>
+<div class="card" style="margin-top:16px"><h3>🎒 {{ t('ac.fauna_kit') }}</h3>
+  <div class="tags">{% for x in fauna.kit %}<span class="badge wrap">{{ x }}</span>{% endfor %}</div>
+  <p class="hint">{{ t('ac.sources') }}: {% for n, u in fauna_sources %}<a href="{{ u }}" target="_blank" rel="noopener">{{ n }}</a>{{ ' · ' if not loop.last }}{% endfor %}</p>
+</div>
+
 <h2>{{ t('ac.sites_title') }}</h2>
 <p class="small muted">{{ t('ac.sites_hint') }}</p>
 <div class="grid g3">

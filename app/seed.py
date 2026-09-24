@@ -111,7 +111,7 @@ async def seed(reset: bool) -> None:
     async with db.acquire() as conn, conn.transaction():
         if reset:
             await conn.execute(
-                """TRUNCATE broadcasts, notifications, review_reports, reviews, payments, assignments,
+                """TRUNCATE assignment_addons, guide_addons, request_safety, broadcasts, notifications, review_reports, reviews, payments, assignments,
                    offers, requests, companies, guides, sites, users, regions RESTART IDENTITY CASCADE"""
             )
         elif await conn.fetchval("SELECT count(*) FROM users"):
@@ -270,6 +270,62 @@ async def seed(reset: bool) -> None:
                             rid, g, price + rnd.choice([0, 0, 2000, 5000]),
                         )
         await conn.execute("UPDATE requests SET created_at = now() - interval '2 days' WHERE created_at > now()")
+
+        # Допуслуги у части гидов.
+        ADDONS = {
+            "Айдос Жаксылыков": [("drone", 25000, "tour"), ("photo", 15000, "tour"), ("catering", 6000, "person")],
+            "Айгерим Утепова": [("photo", 20000, "tour"), ("reel", 18000, "tour")],
+            "Нурлан Абилов": [("camping", 30000, "tour"), ("starlink", 12000, "tour"), ("catering", 5000, "person")],
+            "Асель Нурмагамбетова": [("photo", 15000, "tour"), ("drone", 30000, "tour")],
+            "Жанна Калиева": [("photo", 18000, "tour"), ("reel", 15000, "tour")],
+            "Динара Сейтқалиева": [("catering", 7000, "person")],
+        }
+        for name, items in ADDONS.items():
+            gid = await conn.fetchval("SELECT id FROM users WHERE name=$1", name)
+            for kind, price, per in items:
+                await conn.execute(
+                    "INSERT INTO guide_addons (guide_id, kind, price, per) VALUES ($1,$2,$3,$4)",
+                    gid, kind, price, per,
+                )
+
+        # Страны туристов у демо-заявок — для аналитики турпотока (без данных о здоровье).
+        LANG_COUNTRIES = {"en": ["GB", "US", "NL", "AU", "CA", "IL"], "zh": ["CN"], "de": ["DE", "AT", "CH"],
+                          "fr": ["FR"], "ar": ["AE", "SA"], "ko": ["KR"], "ja": ["JP"], "tr": ["TR"],
+                          "ru": ["RU", "UZ", "KG", "AZ"], "kk": ["UZ", "KG"]}
+        for r in await conn.fetch("SELECT id, language FROM requests"):
+            pool_c = LANG_COUNTRIES.get(r["language"], ["GB"])
+            await conn.execute(
+                "INSERT INTO request_safety (request_id, countries) VALUES ($1,$2)",
+                r["id"], [rnd.choice(pool_c)],
+            )
+
+        # Демо для питча: подтверждённый тур Айдоса с анкетой безопасности и допами.
+        aidos = guides[0]
+        anna = tourists[0]
+        d_from = today + timedelta(days=9)
+        rid = await request(anna, "en", d_from, 2, [site_id["bozjyra"], site_id["tuzbair"]], 25000, "confirmed", group=4)
+        await conn.execute(
+            """INSERT INTO request_safety (request_id, countries, diet, risks, epipen,
+                   ice_name, ice_phone, note, consent_at)
+               VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,now())""",
+            rid, ["DE", "AT"], ["vegetarian", "nuts"], ["anaphylaxis", "motion_sickness"],
+            "Klaus Müller (демо)", "+491700000000", "Одна туристка боится высоты — держитесь подальше от края обрывов.",
+        )
+        aid = await assign(rid, aidos[0], anna, 25000, 2, "confirmed")
+        extras = []
+        for kind, qty in (("drone", 1), ("catering", 4)):
+            a = await conn.fetchrow("SELECT * FROM guide_addons WHERE guide_id=$1 AND kind=$2", aidos[0], kind)
+            extras.append((a, qty, a["price"] * qty))
+            await conn.execute(
+                """INSERT INTO assignment_addons (assignment_id, addon_id, kind, price, per, qty, amount)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7)""", aid, a["id"], kind, a["price"], a["per"], qty, a["price"] * qty,
+            )
+        total = 25000 * 2 + sum(x[2] for x in extras)
+        await conn.execute("UPDATE assignments SET total=$2 WHERE id=$1", aid, total)
+        await conn.execute(
+            "INSERT INTO payments (kind, assignment_id, amount, status) VALUES ('deposit',$1,$2,'paid_test')",
+            aid, round(total * 0.1),
+        )
         await rating.recompute_all(conn)
 
         levels = await conn.fetch(

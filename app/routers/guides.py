@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from ..auth import require_user
-from ..config import GUIDE_LANGS, SPECIALIZATIONS
+from ..config import ADDON_KINDS, GUIDE_LANGS, SPECIALIZATIONS
 from ..db import pool
 from ..web import flash, redirect, render
 
@@ -67,14 +67,49 @@ async def profile(request: Request, guide_id: int):
     )
     sites = [s for s in await all_sites() if s["id"] in g["site_ids"]]
     return await render(request, "guides/profile.html", g=g, reviews=reviews,
-                        criteria=criteria, sites=sites)
+                        criteria=criteria, sites=sites, addons=await guide_addons(guide_id))
+
+
+async def guide_addons(guide_id: int):
+    return await pool().fetch(
+        "SELECT * FROM guide_addons WHERE guide_id=$1 AND active ORDER BY price", guide_id
+    )
 
 
 @router.get("/profile")
 async def edit_form(request: Request):
     user = await require_user(request, "guide")
     g = await pool().fetchrow("SELECT * FROM guides WHERE user_id=$1", user["id"])
-    return await render(request, "guides/edit.html", g=g, sites=await all_sites())
+    return await render(request, "guides/edit.html", g=g, sites=await all_sites(),
+                        addons=await guide_addons(user["id"]))
+
+
+@router.post("/profile/addons")
+async def addon_save(request: Request):
+    user = await require_user(request, "guide")
+    form = await request.form()
+    kind, per = form.get("kind"), form.get("per")
+    raw = str(form.get("price", "")).replace(" ", "")
+    if kind not in ADDON_KINDS or per not in ("tour", "person") or not raw.isdigit() or int(raw) <= 0:
+        flash(request, "addon.invalid", "error")
+        return redirect("/profile#addons")
+    await pool().execute(
+        """INSERT INTO guide_addons (guide_id, kind, price, per) VALUES ($1,$2,$3,$4)
+           ON CONFLICT (guide_id, kind) DO UPDATE SET price=EXCLUDED.price, per=EXCLUDED.per, active=TRUE""",
+        user["id"], kind, int(raw), per,
+    )
+    flash(request, "addon.saved")
+    return redirect("/profile#addons")
+
+
+@router.post("/profile/addons/{addon_id}/delete")
+async def addon_delete(request: Request, addon_id: int):
+    user = await require_user(request, "guide")
+    await pool().execute(
+        "UPDATE guide_addons SET active=FALSE WHERE id=$1 AND guide_id=$2", addon_id, user["id"]
+    )
+    flash(request, "addon.deleted")
+    return redirect("/profile#addons")
 
 
 @router.post("/profile")

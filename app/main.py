@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -7,15 +9,33 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from . import config
 from .auth import LoginRequired
-from .db import close_pool, init_pool
+from .db import close_pool, init_pool, pool
+from .services import safety
 from .routers import academy, account, auth, billing, dashboard, guides, public, requests, reviews
 from .web import redirect, render
+
+log = logging.getLogger("app")
+
+
+async def _purge_loop():
+    """Анкеты безопасности удаляются через SAFETY_RETENTION_DAYS после тура."""
+    while True:
+        try:
+            async with pool().acquire() as conn:
+                n = await safety.purge(conn)
+            if n:
+                log.info("purged %s safety forms", n)
+        except Exception as e:  # не роняем приложение из-за фоновой задачи
+            log.warning("safety purge failed: %s", e)
+        await asyncio.sleep(6 * 3600)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await init_pool()
+    task = asyncio.create_task(_purge_loop())
     yield
+    task.cancel()
     await close_pool()
 
 
