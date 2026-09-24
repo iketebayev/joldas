@@ -204,3 +204,9 @@ footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--m
 input.flatpickr-input[readonly] { background: #fff; cursor: pointer; }
 input.invalid { outline: 2px solid var(--bad); }
 .flatpickr-calendar .flatpickr-day.selected, .flatpickr-calendar .flatpickr-day.selected:hover { background: var(--accent); border-color: var(--accent); }
+
+/* туры агентств */
+.tours-mini { display: grid; gap: 8px; }
+.tour-mini { display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: inherit; }
+.tour-mini:hover { border-color: var(--accent); text-decoration: none; }
+.tour-card .price { font-weight: 800; font-size: 18px; }

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.my_tours') }}{% endblock %}
+{% block content %}
+<h1>{{ t('nav.my_tours') }}</h1>
+<p class="muted">{{ t('tour.mine_hint') }}</p>
+{% if not active_plan %}
+  <div class="flash error">{{ t('tour.need_plan') }} <a href="/pricing">{{ t('billing.subscribe') }} →</a></div>
+{% endif %}
+
+<h2>{{ t('tour.bookings') }}</h2>
+<div class="card">
+{% for b in bookings %}
+  <div class="offer">
+    <div><b>{{ b.title }}</b> · {{ b.date_from.strftime('%d.%m.%Y') }} · {{ t('req.people_n', n=b.group_size) }} · {{ money(b.total) }}
+      <div class="small">{{ b.tourist }}{% if b.status == 'confirmed' %} · <a href="tel:{{ b.phone }}">{{ b.phone }}</a> · {{ b.email or '' }}{% endif %}</div></div>
+    <div class="row">
+      {% if b.status == 'pending' %}
+        <form method="post" action="/bookings/{{ b.id }}/confirm"><button class="btn small">{{ t('tour.confirm') }}</button></form>
+        <form method="post" action="/bookings/{{ b.id }}/decline"><button class="btn small ghost">{{ t('tour.decline') }}</button></form>
+      {% else %}<span class="badge st-{{ 'confirmed' if b.status == 'confirmed' else 'cancelled' }}">{{ t('tbs.' ~ b.status) }}</span>{% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="empty small">{{ t('tour.no_bookings') }}</div>
+{% endfor %}
+</div>
+
+<h2>{{ t('tour.my_list') }}</h2>
+<div class="card">
+{% for tr in tours %}
+  <div class="offer">
+    <div><a href="/tours/{{ tr.id }}"><b>{{ tr.title }}</b></a> · {{ t('common.days_n', n=tr.days) }} · {{ money(tr.price_per_person) }} / {{ t('tour.per_person') }}
+      {% if not tr.active %}<span class="badge">{{ t('tour.hidden') }}</span>{% endif %}</div>
+    <form method="post" action="/tours/{{ tr.id }}/toggle"><button class="btn small ghost">{{ t('tour.hide') if tr.active else t('tour.show') }}</button></form>
+  </div>
+{% else %}
+  <div class="empty small">{{ t('tour.none_mine') }}</div>
+{% endfor %}
+</div>
+
+<h2>{{ t('tour.new') }}</h2>
+<form class="card" method="post" action="/tours/mine">
+  <label for="title">{{ t('tour.f_title') }}</label><input id="title" name="title" type="text" required>
+  <label for="description">{{ t('tour.f_desc') }}</label><textarea id="description" name="description"></textarea>
+  <div class="grid g3" style="gap:12px">
+    <div><label for="days">{{ t('tour.duration') }}</label><input id="days" name="days" type="number" min="1" max="30" value="1" required></div>
+    <div><label for="ppp">{{ t('tour.f_price') }}, ₸</label><input id="ppp" name="price_per_person" type="number" min="1000" step="1000" required></div>
+    <div><label for="max_group">{{ t('tour.max_group') }}</label><input id="max_group" name="max_group" type="number" min="1" value="8"></div>
+  </div>
+  <label>{{ t('req.sites') }}</label>
+  <div class="checks">{% for s in sites %}<label><input type="checkbox" name="site_ids" value="{{ s.id }}"> {{ name_of(s) }}</label>{% endfor %}</div>
+  <label>{{ t('tour.languages') }}</label>
+  <div class="checks">{% for c in guide_langs %}<label><input type="checkbox" name="languages" value="{{ c }}"> {{ t('lang.' ~ c) }}</label>{% endfor %}</div>
+  <label>{{ t('tour.includes') }}</label>
+  <div class="checks">{% for i in includes %}<label><input type="checkbox" name="includes" value="{{ i }}"> {{ t('tinc.' ~ i) }}</label>{% endfor %}</div>
+  <button class="btn" style="margin-top:16px">{{ t('tour.publish') }}</button>
+</form>
+{% endblock %}

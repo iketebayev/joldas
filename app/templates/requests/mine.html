@@ -10,6 +10,22 @@
   <p class="small muted">{{ t('billing.current_plan') }}: <b>{{ t('billing.plan_' ~ company.plan) }}</b>
   {% if company.plan == 'start' %} · <a href="/pricing">{{ t('billing.upgrade') }}</a>{% endif %}</p>
 {% endif %}
+{% if bookings %}
+<h2>{{ t('tour.my_bookings') }}</h2>
+<div class="grid">
+{% for b in bookings %}
+  <div class="card req">
+    <div class="row between"><b>{{ b.title }}</b><span class="badge st-{{ {'pending':'matched','confirmed':'confirmed'}.get(b.status, 'cancelled') }}">{{ t('tbs.' ~ b.status) }}</span></div>
+    <div class="small">{{ b.agency }} · {{ b.date_from.strftime('%d.%m.%Y') }} · {{ t('req.people_n', n=b.group_size) }} · <b>{{ money(b.total) }}</b></div>
+    {% if b.status == 'confirmed' %}<div class="contacts small" style="margin-top:6px">{{ t('a.contacts') }}: <a href="tel:{{ b.phone }}">{{ b.phone }}</a>{% if b.email %} · {{ b.email }}{% endif %}</div>{% endif %}
+    {% if b.status in ('pending', 'confirmed') %}
+      <form method="post" action="/bookings/{{ b.id }}/cancel" style="margin-top:8px"><button class="btn small danger">{{ t('tour.cancel') }}</button></form>
+    {% endif %}
+  </div>
+{% endfor %}
+</div>
+<h2>{{ t('tour.my_requests') }}</h2>
+{% endif %}
 <div class="grid" style="margin-top:12px">
 {% for r in rows %}
   <a class="card req" href="/requests/{{ r.id }}" style="color:inherit;text-decoration:none">

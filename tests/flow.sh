@@ -51,7 +51,7 @@ ok "$(post comp /assignments/$AID/review 'overall=1')" "409" "повторный
 ok "$(q "SELECT count(*) FROM reviews WHERE assignment_id=$AID AND author_id=(SELECT id FROM users WHERE email='company@demo.kz')")" "1" "в базе ровно один отзыв"
 
 echo "6. Турист: заявка → выбор → депозит 10% → контакты"
-post tour /requests/new "date_from=$D1&language=en&group_size=2&price_per_day=20000" >/dev/null
+post tour /requests/new "transport=car&date_from=$D1&language=en&group_size=2&price_per_day=20000" >/dev/null
 TR=$(q "SELECT max(id) FROM requests")
 post guide /requests/$TR/offer "action=accept" >/dev/null
 TO=$(q "SELECT id FROM offers WHERE request_id=$TR AND guide_id=$AIDOS")
@@ -68,7 +68,7 @@ post tour /assignments/$TA/cancel >/dev/null
 ok "$(q "SELECT amount FROM payments WHERE assignment_id=$TA AND kind='refund'")" "2000" "возврат 2 000"
 
 echo "8. Отмена туристом за <48 ч → депозит не возвращается"
-post tour /requests/new "date_from=$SOON&language=en&group_size=2&price_per_day=20000" >/dev/null
+post tour /requests/new "transport=car&date_from=$SOON&language=en&group_size=2&price_per_day=20000" >/dev/null
 TR2=$(q "SELECT max(id) FROM requests")
 post guide /requests/$TR2/offer "action=accept" >/dev/null
 post tour /offers/$(q "SELECT id FROM offers WHERE request_id=$TR2 AND guide_id=$AIDOS")/choose >/dev/null
@@ -78,7 +78,7 @@ post tour /assignments/$TA2/cancel >/dev/null
 ok "$(q "SELECT count(*) FROM payments WHERE assignment_id=$TA2 AND kind='refund'")" "0" "возврата нет"
 
 echo "9. Отмена гидом → штраф 1★, полный возврат, заявка снова открыта"
-post tour /requests/new "date_from=$D1&language=en&group_size=2&price_per_day=20000" >/dev/null
+post tour /requests/new "transport=car&date_from=$D1&language=en&group_size=2&price_per_day=20000" >/dev/null
 TR3=$(q "SELECT max(id) FROM requests")
 login timur "$(q "SELECT email FROM users WHERE id=$TIMUR")" 2>/dev/null
 q "UPDATE users SET email='timur@demo.kz' WHERE id=$TIMUR" >/dev/null; login timur timur@demo.kz
@@ -134,9 +134,9 @@ ok "$(post comp /offers/$(q "SELECT id FROM offers WHERE request_id=$DB1 AND gui
 echo "15. Анкета безопасности: без согласия — отказ, с согласием — сохранена"
 D3=$(date -d '+40 days' +%F); D4=$(date -d '+41 days' +%F)
 N0=$(q "SELECT count(*) FROM requests")
-curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&risks=anaphylaxis&epipen=on&ice_name=Hans&ice_phone=%2B491701234567"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=car&date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&risks=anaphylaxis&epipen=on&ice_name=Hans&ice_phone=%2B491701234567"
 ok "$(q "SELECT count(*) FROM requests")" "$N0" "без согласия заявка не создана"
-curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&countries=DE&risks=anaphylaxis&epipen=on&ice_name=Hans+Safety&ice_phone=%2B491701234567&consent=on"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=car&date_from=$D3&date_to=$D4&language=en&group_size=4&price_per_day=20000&countries=DE&risks=anaphylaxis&epipen=on&ice_name=Hans+Safety&ice_phone=%2B491701234567&consent=on"
 SR=$(q "SELECT max(id) FROM requests")
 ok "$(q "SELECT risks[1]||'/'||epipen||'/'||(consent_at IS NOT NULL) FROM request_safety WHERE request_id=$SR")" "anaphylaxis/true/true" "анкета сохранена с согласием"
 
@@ -188,7 +188,7 @@ ok "$(curl -s -o /dev/null -w '%{http_code}' $B/academy/bozjyra.gpx)" "200" "GPX
 echo "20. Въезд в госпарк: расчёт, отдельно от ставки гида"
 D5=$(date -d '+50 days' +%F); D6=$(date -d '+51 days' +%F)
 BZ=$(q "SELECT id FROM sites WHERE slug='bozjyra'"); TZ=$(q "SELECT id FROM sites WHERE slug='tuzbair'"); SH=$(q "SELECT id FROM sites WHERE slug='sherkala'")
-curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&date_to=$D6&language=en&group_size=4&price_per_day=20000&site_ids=$BZ&site_ids=$TZ"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=car&date_from=$D5&date_to=$D6&language=en&group_size=4&price_per_day=20000&site_ids=$BZ&site_ids=$TZ"
 PR=$(q "SELECT max(id) FROM requests")
 ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$PR | grep -c '16.868')" "1" "заказчик видит ≈16 868 ₸ за въезд (4 чел. × 2 дн.)"
 post guide /requests/$PR/offer "action=accept" >/dev/null
@@ -198,7 +198,7 @@ PA=$(q "SELECT id FROM assignments WHERE request_id=$PR AND status<>'cancelled'"
 ok "$(q "SELECT entry_fee||'/'||total FROM assignments WHERE id=$PA")" "16868/40000" "въезд отдельно от ставки гида"
 post tour /assignments/$PA/pay >/dev/null
 ok "$(q "SELECT amount FROM payments WHERE assignment_id=$PA AND kind='deposit'")" "4000" "депозит 10% только от услуг гида"
-curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&language=en&group_size=4&price_per_day=20000&site_ids=$SH"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=car&date_from=$D5&language=en&group_size=4&price_per_day=20000&site_ids=$SH"
 NR=$(q "SELECT max(id) FROM requests")
 ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$NR | grep -c 'Кроме ставки гида')" "0" "маршрут вне парка — без платы за въезд"
 
@@ -206,12 +206,41 @@ ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$NR | grep -c 'Кро�
 echo "21. Цена в валюте: пересчёт в тенге по курсу, подсказка средней ставки"
 USD=$(q "SELECT kzt FROM exchange_rates WHERE code='USD'")
 ok "$( [ -n "$USD" ] && echo yes )" "yes" "курс USD загружен ($USD ₸)"
-curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&language=en&group_size=2&price_per_day=60&currency=USD"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=car&date_from=$D5&language=en&group_size=2&price_per_day=60&currency=USD"
 UR=$(q "SELECT max(id) FROM requests")
 EXPK=$(python3 -c "print(round(60*$USD))")
 ok "$(q "SELECT currency||'/'||price_original::int||'/'||price_per_day FROM requests WHERE id=$UR")" "USD/60/$EXPK" "60 USD сохранены как $EXPK ₸"
 ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests | grep -q '\$60' && echo yes)" "yes" "гид видит исходную сумму в долларах рядом с тенге"
 HINT=$(curl -s "$B/api/price-hint?language=en&sites=$BZ")
 ok "$(echo "$HINT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d['avg_kzt'] and d['rates']['USD'] and d['scope'] else d)")" "ok" "подсказка: средняя ставка и курсы"
+
+
+echo "22. Туры агентств: вопрос о транспорте, витрина, бронь, подписка"
+N0=$(q "SELECT count(*) FROM requests")
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&language=en&group_size=2&price_per_day=20000"
+ok "$(q "SELECT count(*) FROM requests")" "$N0" "без ответа о транспорте заявка туриста не создаётся"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "transport=none&date_from=$D5&language=en&group_size=2&price_per_day=20000&site_ids=$BZ"
+ok "$(q "SELECT transport FROM requests ORDER BY id DESC LIMIT 1")" "none" "ответ «нет ни тура, ни машины» сохранён"
+ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests | grep -q 'нужна машина' && echo yes)" "yes" "гид видит бейдж «нужна машина»"
+TID=$(curl -s "$B/api/tours?sites=$BZ&language=en" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+ok "$( [ -n "$TID" ] && echo yes )" "yes" "витрина подобрала тур по объекту и языку"
+MAXG=$(q "SELECT max_group FROM tours WHERE id=$TID")
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/tours/$TID/book -d "date_from=$D5&group_size=$((MAXG+1))"
+ok "$(q "SELECT count(*) FROM tour_bookings WHERE tour_id=$TID AND date_from='$D5'")" "0" "группа больше максимума — бронь отклонена"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/tours/$TID/book -d "date_from=$D5&group_size=2"
+BID=$(q "SELECT id FROM tour_bookings WHERE tour_id=$TID AND date_from='$D5'")
+ok "$(q "SELECT status||'/'||total FROM tour_bookings WHERE id=$BID")" "pending/$(( $(q "SELECT price_per_person FROM tours WHERE id=$TID") * 2 ))" "бронь создана: ждёт подтверждения, сумма = цена × 2"
+AG=$(q "SELECT u.email FROM tours t JOIN users u ON u.id=t.company_id WHERE t.id=$TID")
+login agency "$AG"
+post agency /bookings/$BID/confirm >/dev/null
+ok "$(q "SELECT status FROM tour_bookings WHERE id=$BID")" "confirmed" "агентство подтвердило бронь"
+AGPHONE=$(q "SELECT phone FROM users WHERE email='$AG'")
+TPAGE=$(curl -s -b $D/tour $B/requests)
+ok "$(echo "$TPAGE" | grep -q "tel:$AGPHONE" && echo yes)" "yes" "турист видит контакты агентства"
+echo "$TPAGE" | grep -q "tel:$AGPHONE" || { echo "   отладка: телефон=[$AGPHONE], брони в странице: $(echo "$TPAGE" | grep -c 'bookings/')"; }
+AGID=$(q "SELECT company_id FROM tours WHERE id=$TID")
+q "UPDATE companies SET plan='start', plan_until=NULL WHERE user_id=$AGID" >/dev/null
+ok "$(curl -s "$B/api/tours" | python3 -c "import sys,json; print('yes' if all(t['id']!=$TID for t in json.load(sys.stdin)) else 'no')")" "yes" "без подписки туры агентства скрыты"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/tours/$TID)" "404" "страница тура без подписки недоступна туристу"
 
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

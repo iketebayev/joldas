@@ -226,3 +226,33 @@ CREATE TABLE IF NOT EXISTS exchange_rates (
 -- Валюта, в которой заказчик указал цену; price_per_day всегда хранится в тенге.
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'KZT';
 ALTER TABLE requests ADD COLUMN IF NOT EXISTS price_original NUMERIC(12,2);
+
+-- Как турист едет: свой тур, своя машина или ни того, ни другого (тогда предлагаем туры агентств).
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS transport TEXT CHECK (transport IN ('tour','car','none'));
+
+-- Готовые туры турагентств. Показываются только у агентств с активным тарифом «Сезон».
+CREATE TABLE IF NOT EXISTS tours (
+    id               SERIAL PRIMARY KEY,
+    company_id       INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title            TEXT NOT NULL,
+    description      TEXT,
+    days             INT  NOT NULL CHECK (days BETWEEN 1 AND 30),
+    price_per_person INT  NOT NULL CHECK (price_per_person > 0),
+    languages        TEXT[] NOT NULL DEFAULT '{}',
+    site_ids         INT[]  NOT NULL DEFAULT '{}',
+    includes         TEXT[] NOT NULL DEFAULT '{}',
+    max_group        INT  NOT NULL DEFAULT 8 CHECK (max_group > 0),
+    active           BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS tour_bookings (
+    id         SERIAL PRIMARY KEY,
+    tour_id    INT NOT NULL REFERENCES tours(id) ON DELETE CASCADE,
+    tourist_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date_from  DATE NOT NULL,
+    group_size INT  NOT NULL CHECK (group_size > 0),
+    total      INT  NOT NULL,
+    status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','declined','cancelled')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

@@ -65,6 +65,27 @@
   update();
 })();
 
+// Нет ни тура, ни машины — показываем готовые туры агентств по выбранным объектам и языку.
+(function () {
+  const panel = document.getElementById("tours-panel"); if (!panel) return;
+  const L = {{ {'days': t('common.days_n', n='__N__'), 'pp': t('tour.per_person'), 'view': t('tour.view'), 'none': t('tour.none')} | tojson }};
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  async function load() {
+    if (document.querySelector('input[name="transport"]:checked')?.value !== "none") { panel.hidden = true; return; }
+    panel.hidden = false;
+    const sites = [...document.querySelectorAll('input[name="site_ids"]:checked')].map((x) => x.value).join(",");
+    const lang = document.getElementById("language").value;
+    const list = await (await fetch(`/api/tours?sites=${sites}&language=${lang}`)).json();
+    document.getElementById("tours-list").innerHTML = list.length ? list.map((t) =>
+      `<a class="tour-mini" href="/tours/${t.id}" target="_blank"><b>${esc(t.title)}</b>
+        <span class="small muted">${esc(t.agency)} · ${L.days.replace("__N__", t.days)} · ${esc(t.sites.join(", "))}</span>
+        <span class="small"><b>${t.price.toLocaleString("ru-RU").replace(/,/g, " ")} ₸</b> / ${L.pp} · ${L.view} →</span></a>`).join("")
+      : `<p class="small muted">${L.none}</p>`;
+  }
+  document.querySelectorAll('input[name="transport"], input[name="site_ids"]').forEach((el) => el.addEventListener("change", load));
+  document.getElementById("language").addEventListener("change", load);
+})();
+
 // Валюта: пересчёт в тенге по курсу Нацбанка и средняя ставка гида по языку и объектам.
 (function () {
   const $ = (id) => document.getElementById(id);
@@ -125,6 +146,19 @@
 <h1>{{ t('req.new_title') }}</h1>
 <p class="muted">{{ t('req.new_hint') }}</p>
 <form class="card" method="post" action="/requests/new" id="req-form">
+  {% if user.role == 'tourist' %}
+  <fieldset class="safety-box" style="margin-top:0">
+    <legend>🚙 {{ t('tr.question') }}</legend>
+    <div class="checks" style="margin-top:6px">
+      {% for o in ['tour', 'car', 'none'] %}<label><input type="radio" name="transport" value="{{ o }}" required> {{ t('tr.' ~ o) }}</label>{% endfor %}
+    </div>
+    <div id="tours-panel" hidden>
+      <p class="small" style="margin:12px 0 6px"><b>{{ t('tr.offer_title') }}</b> {{ t('tr.offer_text') }}</p>
+      <div id="tours-list" class="tours-mini"></div>
+      <p class="hint">{{ t('tr.or_continue') }} <a href="/tours" target="_blank">{{ t('tr.all_tours') }} →</a></p>
+    </div>
+  </fieldset>
+  {% endif %}
   <div class="grid g2" style="gap:12px">
     <div><label for="date_from">{{ t('req.date_from') }}</label><input id="date_from" name="date_from" type="text" placeholder="{{ t('req.pick_date') }}" autocomplete="off"></div>
     <div><label for="date_to">{{ t('req.date_to') }}</label><input id="date_to" name="date_to" type="text" placeholder="{{ t('req.pick_date') }}" autocomplete="off"></div>

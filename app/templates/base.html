@@ -15,6 +15,7 @@
     <a class="logo" href="/"><i></i>{{ app_name }}</a>
     <nav class="nav">
       <a href="/guides" class="{{ 'on' if request.url.path.startswith('/guides') }}">{{ t('nav.guides') }}</a>
+      {% if not user or user.role == 'tourist' %}<a href="/tours" class="{{ 'on' if request.url.path.startswith('/tours') }}">{{ t('nav.tours') }}</a>{% endif %}
       {% if user %}
         {% if user.role == 'admin' %}
           <a href="/dashboard" class="{{ 'on' if request.url.path.startswith('/dashboard') }}">{{ t('nav.dashboard') }}</a>
@@ -23,6 +24,7 @@
           <a href="/profile" class="{{ 'on' if request.url.path == '/profile' }}">{{ t('nav.profile') }}</a>
         {% else %}
           <a href="/requests" class="{{ 'on' if request.url.path.startswith('/requests') }}">{{ t('nav.requests') }}</a>
+          {% if user.role == 'company' %}<a href="/tours/mine" class="{{ 'on' if request.url.path == '/tours/mine' }}">{{ t('nav.my_tours') }}</a>{% endif %}
         {% endif %}
       {% endif %}
       {% if not user or user.role in ('guide', 'admin') %}

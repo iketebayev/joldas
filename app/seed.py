@@ -73,8 +73,8 @@ GUIDES = [
 
 COMPANIES = [
     ("Caspian Trails", "company@demo.kz"),
-    ("Mangystau Explorer", None),
-    ("Steppe Travel", None),
+    ("Mangystau Explorer", "explorer@demo.kz"),
+    ("Steppe Travel", "steppe@demo.kz"),
 ]
 TOURISTS = [("Anna Müller", "tourist@demo.kz"), ("John Smith", None), ("Li Wei", None)]
 
@@ -88,6 +88,47 @@ REVIEW_TEXT = {
         "Всё понравилось, но хотелось больше остановок для фото."],
     3: ["Нормально, но опоздал на час."],
 }
+
+
+TOURS = [
+    ("Caspian Trails", "Bozzhyra & Tuzbair: Two Days on the Ustyurt", 2, 145000, ["en", "ru"],
+     ["bozjyra", "tuzbair", "bokty", "kyzylkup"], ["transport", "guide", "meals", "camping"], 6,
+     "Day 1: Aktau → Kyzylkup (\"Tiramisu\") → Bokty → sunset at Bozzhyra, night in camp.\n"
+     "Day 2: sunrise over the \"fangs\" → Tuzbair salt flat and chalk arch → back to Aktau."),
+    ("Caspian Trails", "Sacred Mangystau: Underground Mosques", 1, 65000, ["en", "de", "ru"],
+     ["shopan_ata", "beket_ata"], ["transport", "guide", "meals"], 7,
+     "Shopan Ata and Beket Ata — UNESCO World Heritage since July 2026. Dress code applies."),
+    ("Mangystau Explorer", "Sherkala & the Valley of Balls", 1, 48000, ["en", "fr", "ru"],
+     ["sherkala", "torysh"], ["transport", "guide"], 6,
+     "The \"Lion's Fortress\", the Akmysh spring and giant stone balls from the ancient Tethys Ocean."),
+    ("Mangystau Explorer", "Karagiye Depression: Half-Day from Aktau", 1, 25000, ["en", "ru"],
+     ["karagiye"], ["transport", "guide"], 8,
+     "132 m below sea level, 50 km from Aktau — the easiest wow-view when time is short."),
+    ("Steppe Travel", "Tupkaragan Canyons & Sultan Epe", 1, 55000, ["en", "zh", "ru"],
+     ["zhygylgan", "kapamsay", "sultan_epe", "shakpak_ata"], ["transport", "guide", "meals"], 6,
+     "Fallen land with fossil footprints, the white Kapamsay canyon and two underground mosques."),
+    ("Steppe Travel", "Grand Mangystau in 3 Days", 3, 240000, ["en", "zh", "tr"],
+     ["bozjyra", "tuzbair", "beket_ata", "shopan_ata", "sherkala"], ["transport", "guide", "meals", "camping", "entry_fee"], 6,
+     "The whole peninsula: Ustyurt escarpments, sacred sites and Sherkala. Park entry included."),
+]
+
+
+async def seed_tours(conn, site_id: dict, tourists: list) -> None:
+    rnd = random.Random(7)
+    ids = []
+    for agency, title, days, price, langs, sites, includes, max_group, desc in TOURS:
+        cid = await conn.fetchval("SELECT user_id FROM companies WHERE name=$1", agency)
+        ids.append((await conn.fetchval(
+            """INSERT INTO tours (company_id, title, description, days, price_per_person, languages,
+                   site_ids, includes, max_group) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id""",
+            cid, title, desc, days, price, langs, [site_id[x] for x in sites], includes, max_group,
+        ), price))
+    for (tid, price), status in zip(ids[:3], ("confirmed", "pending", "pending")):
+        g = rnd.randint(2, 4)
+        await conn.execute(
+            "INSERT INTO tour_bookings (tour_id, tourist_id, date_from, group_size, total, status) VALUES ($1,$2,$3,$4,$5,$6)",
+            tid, rnd.choice(tourists), date.today() + timedelta(days=rnd.randint(5, 30)), g, price * g, status,
+        )
 
 
 def ts(d: date) -> datetime:
@@ -111,7 +152,7 @@ async def seed(reset: bool) -> None:
     async with db.acquire() as conn, conn.transaction():
         if reset:
             await conn.execute(
-                """TRUNCATE assignment_addons, guide_addons, request_safety, broadcasts, notifications, review_reports, reviews, payments, assignments,
+                """TRUNCATE tour_bookings, tours, assignment_addons, guide_addons, request_safety, broadcasts, notifications, review_reports, reviews, payments, assignments,
                    offers, requests, companies, guides, sites, users, regions RESTART IDENTITY CASCADE"""
             )
         elif await conn.fetchval("SELECT count(*) FROM users"):
@@ -326,6 +367,10 @@ async def seed(reset: bool) -> None:
             "INSERT INTO payments (kind, assignment_id, amount, status) VALUES ('deposit',$1,$2,'paid_test')",
             aid, round(total * 0.1),
         )
+        await seed_tours(conn, site_id, tourists)
+        await conn.execute(
+            "UPDATE requests SET transport = (ARRAY['tour','car','none'])[1 + (id % 3)] WHERE author_type='tourist'")
+
         # Въезд в госпарк у заказов, чей маршрут заходит в «Кызылсай».
         for a in await conn.fetch(
             """SELECT a.id, a.days, r.group_size, array_agg(s.slug) AS slugs

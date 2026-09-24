@@ -22,7 +22,8 @@
       <div class="row"><span class="badge">{{ t('lang.' ~ r.language) }}</span>
         <span class="badge">{{ t('role.' ~ r.author_type) }}</span>
         {% if r.urgent %}<span class="badge urgent">{{ t('req.urgent_badge') }}</span>{% endif %}
-        {% if r.offered %}<span class="badge st-confirmed">{{ t('feed.offered') }}</span>{% endif %}</div>
+        {% if r.offered %}<span class="badge st-confirmed">{{ t('feed.offered') }}</span>{% endif %}
+        {% if r.transport == 'none' %}<span class="badge urgent">🚙 {{ t('tr.need_car') }}</span>{% endif %}</div>
       <div class="price">{{ price_label(r) }} <span class="small muted">/ {{ t('common.day') }}</span></div>
     </div>
     <div><b>{{ m.dates(r) }}</b> · {{ t('req.people_n', n=r.group_size) }}</div>

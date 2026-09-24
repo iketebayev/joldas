@@ -1,0 +1,21 @@
+{% import "macros.html" as m %}
+<div class="grid g2">
+{% for t_ in tours %}
+  <a class="card tour-card" href="/tours/{{ t_.id }}" style="color:inherit;text-decoration:none">
+    <div class="row between"><span class="small muted">{{ t_.agency }}</span>
+      {% if t_.agency_rating %}<span class="small">{{ m.rating(t, t_.agency_rating, t_.agency_reviews) }}</span>{% endif %}</div>
+    <h3 style="margin-top:6px">{{ t_.title }}</h3>
+    <div class="small muted">{{ m.site_names(sites, t_.site_ids, name_of) }}</div>
+    <div class="tags" style="margin-top:8px">
+      <span class="badge">{{ t('common.days_n', n=t_.days) }}</span>
+      {% for i in t_.includes %}<span class="badge">✓ {{ t('tinc.' ~ i) }}</span>{% endfor %}
+    </div>
+    <div class="row between" style="margin-top:10px">
+      <div class="tags">{% for c in t_.languages %}<span class="badge">{{ t('lang.' ~ c) }}</span>{% endfor %}</div>
+      <div class="price">{{ money(t_.price_per_person) }} <span class="small muted">/ {{ t('tour.per_person') }}</span></div>
+    </div>
+  </a>
+{% else %}
+  <div class="card empty">{{ t('tour.none') }}</div>
+{% endfor %}
+</div>

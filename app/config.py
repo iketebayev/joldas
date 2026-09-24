@@ -55,3 +55,7 @@ SEATS_PER_CAR = 4
 CURRENCIES = ("KZT", "USD", "EUR", "CNY")
 CURRENCY_SIGN = {"KZT": "₸", "USD": "$", "EUR": "€", "CNY": "¥"}
 RATES_REFRESH_HOURS = 6
+
+# Туры агентств
+TRANSPORT = ("tour", "car", "none")
+TOUR_INCLUDES = ("transport", "guide", "meals", "camping", "entry_fee")

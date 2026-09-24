@@ -15,7 +15,7 @@
   <div class="card" style="border-color:var(--accent)">
     <h3>{{ t('billing.plan_season') }}</h3>
     <div class="stat">{{ money(season_price) }} <span class="small muted">/ {{ t('billing.month') }}</span></div>
-    <ul class="small"><li>{{ t('billing.season_1') }}</li><li>{{ t('billing.season_2') }}</li><li>{{ t('billing.season_3') }}</li></ul>
+    <ul class="small"><li>{{ t('billing.season_1') }}</li><li>{{ t('billing.season_2') }}</li><li>{{ t('billing.season_3') }}</li><li>{{ t('billing.season_4') }}</li></ul>
     {% if company and company.plan == 'season' %}
       <span class="badge st-confirmed">{{ t('billing.current') }}{% if company.plan_until %} · {{ t('billing.until', date=company.plan_until.strftime('%d.%m.%Y')) }}{% endif %}</span>
     {% elif company %}

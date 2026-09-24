@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ tour.title }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">{% endblock %}
+{% block content %}
+<a href="/tours" class="small">← {{ t('tour.catalog_title') }}</a>
+<div class="grid g2" style="margin-top:10px;align-items:start">
+<div class="card">
+  <div class="row between"><span class="small muted">{{ tour.agency }}</span>
+    {% if tour.agency_rating %}<span class="small">{{ m.rating(t, tour.agency_rating, tour.agency_reviews) }}</span>{% endif %}</div>
+  <h1 style="margin-top:6px">{{ tour.title }}</h1>
+  {% if tour.description %}<p style="white-space:pre-line">{{ tour.description }}</p>{% endif %}
+  <dl class="kv" style="margin-top:12px">
+    <dt>{{ t('tour.duration') }}</dt><dd>{{ t('common.days_n', n=tour.days) }}</dd>
+    <dt>{{ t('req.sites') }}</dt><dd>{% for s in sites %}<a href="/academy/{{ s.slug }}">{{ name_of(s) }}</a>{{ ', ' if not loop.last }}{% endfor %}</dd>
+    <dt>{{ t('tour.languages') }}</dt><dd><div class="tags">{% for c in tour.languages %}<span class="badge">{{ t('lang.' ~ c) }}</span>{% endfor %}</div></dd>
+    <dt>{{ t('tour.includes') }}</dt><dd><div class="tags">{% for i in tour.includes %}<span class="badge">✓ {{ t('tinc.' ~ i) }}</span>{% endfor %}</div></dd>
+    <dt>{{ t('tour.max_group') }}</dt><dd>{{ tour.max_group }}</dd>
+  </dl>
+  {% if park %}
+    <div class="park-fee on" style="margin-top:14px"><b>🎫 {{ t('fee.title') }}</b>
+      <p class="small" style="margin:6px 0 0">{{ t('tour.park_extra', pp=money(park.person_day * tour.days)) }}</p></div>
+  {% endif %}
+</div>
+<div class="card">
+  <div class="price" style="font-size:28px">{{ money(tour.price_per_person) }} <span class="small muted">/ {{ t('tour.per_person') }}</span></div>
+  {% if in_cur(tour.price_per_person, 'USD') %}<div class="small muted">{{ in_cur(tour.price_per_person, 'USD') }} · {{ in_cur(tour.price_per_person, 'EUR') }}</div>{% endif %}
+  {% if user and user.role == 'tourist' %}
+    <form method="post" action="/tours/{{ tour.id }}/book" id="book-form">
+      <label for="date_from">{{ t('req.date_from') }}</label>
+      <input id="date_from" name="date_from" type="text" placeholder="{{ t('req.pick_date') }}" autocomplete="off">
+      <label for="group_size">{{ t('req.group') }}</label>
+      <input id="group_size" name="group_size" type="number" min="1" max="{{ tour.max_group }}" value="2" required>
+      <p class="small" id="tour-total" style="margin:10px 0 0"></p>
+      <button class="btn block" style="margin-top:14px">{{ t('tour.book') }}</button>
+      <p class="hint">{{ t('tour.book_hint') }}</p>
+    </form>
+  {% elif not user %}
+    <a class="btn block" style="margin-top:14px" href="/login?next=/tours/{{ tour.id }}">{{ t('tour.login_to_book') }}</a>
+  {% endif %}
+</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+{% if lang == 'ru' %}<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ru.min.js"></script>{% endif %}
+{% if lang == 'kk' %}<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/kz.min.js"></script>{% endif %}
+<script>
+(function () {
+  const f = document.getElementById("book-form"); if (!f) return;
+  flatpickr("#date_from", { dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", minDate: "today",
+    disableMobile: true, locale: {{ {'ru': 'ru', 'kk': 'kz', 'en': 'default'}[lang] | tojson }} });
+  const price = {{ tour.price_per_person }}, tpl = {{ t('tour.total', total='__T__') | tojson }};
+  const upd = () => { const g = Math.max(1, +document.getElementById("group_size").value || 1);
+    document.getElementById("tour-total").textContent = tpl.replace("__T__", (price * g).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸"); };
+  document.getElementById("group_size").addEventListener("input", upd); upd();
+  f.addEventListener("submit", (e) => { if (!document.getElementById("date_from").value) { e.preventDefault(); document.getElementById("date_from").nextElementSibling.focus(); } });
+})();
+</script>
+{% endblock %}

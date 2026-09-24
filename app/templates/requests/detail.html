@@ -17,6 +17,7 @@
     <dt>{{ t('req.dates') }}</dt><dd><b>{{ m.dates(req) }}</b></dd>
     <dt>{{ t('req.language') }}</dt><dd>{{ t('lang.' ~ req.language) }}</dd>
     <dt>{{ t('req.group') }}</dt><dd>{{ t('req.people_n', n=req.group_size) }}</dd>
+    {% if req.transport %}<dt>{{ t('tr.label') }}</dt><dd>{{ t('tr.' ~ req.transport ~ '_short') }}</dd>{% endif %}
     <dt>{{ t('req.sites') }}</dt><dd>{{ m.site_names(sites, req.site_ids, name_of) or t('req.any_sites') }}</dd>
     <dt>{{ t('req.price') }}</dt><dd><b>{{ price_label(req) }}</b> / {{ t('common.day') }}</dd>
     <dt>{{ t('req.client') }}</dt><dd>{{ req.company_name or req.author_name }} <span class="small muted">· {{ t('role.' ~ req.author_type) }}</span>

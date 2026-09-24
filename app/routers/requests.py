@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import CURRENCIES, GUIDE_LANGS, PARK_SITES
+from ..config import CURRENCIES, GUIDE_LANGS, PARK_SITES, TRANSPORT
 from ..db import pool
 from .. import academy
 from ..services import fees, orders, rates, route, safety
@@ -49,8 +49,17 @@ async def index(request: Request):
     company = None
     if user["role"] == "company":
         company = await db.fetchrow("SELECT * FROM companies WHERE user_id=$1", user["id"])
+    bookings = []
+    if user["role"] == "tourist":
+        bookings = await db.fetch(
+            """SELECT b.*, t.title, t.days, c.name AS agency, u.phone, u.email
+               FROM tour_bookings b JOIN tours t ON t.id=b.tour_id
+               JOIN companies c ON c.user_id=t.company_id JOIN users u ON u.id=t.company_id
+               WHERE b.tourist_id=$1 ORDER BY b.date_from DESC""",
+            user["id"],
+        )
     return await render(request, "requests/mine.html", rows=rows, company=company,
-                        sites=await all_sites())
+                        sites=await all_sites(), bookings=bookings)
 
 
 @router.get("/requests/new")
@@ -78,6 +87,10 @@ async def create(request: Request):
         flash(request, "req.invalid", "error")
         return redirect("/requests/new")
     currency = form.get("currency") if form.get("currency") in CURRENCIES else "KZT"
+    transport = form.get("transport") if form.get("transport") in TRANSPORT else None
+    if user["role"] == "tourist" and not transport:
+        flash(request, "tr.need_answer", "error")
+        return redirect("/requests/new")
     # Цена хранится в тенге по текущему курсу; исходная сумма и валюта — для показа.
     rate = (await rates.current(pool()))["rates"].get(currency)
     if not rate:
@@ -108,8 +121,8 @@ async def create(request: Request):
             "note": (form.get("note") or "").strip() or None,
             "urgent": user["role"] == "company" and form.get("urgent") == "on",
         })
-        await conn.execute("UPDATE requests SET currency=$2, price_original=$3 WHERE id=$1",
-                           rid, currency, round(price_original, 2))
+        await conn.execute("UPDATE requests SET currency=$2, price_original=$3, transport=$4 WHERE id=$1",
+                           rid, currency, round(price_original, 2), transport)
         await safety.save(conn, rid, safety_data)
     if notified:
         flash(request, "req.created_n", n=notified)
