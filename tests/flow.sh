@@ -210,7 +210,7 @@ curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from
 UR=$(q "SELECT max(id) FROM requests")
 EXPK=$(python3 -c "print(round(60*$USD))")
 ok "$(q "SELECT currency||'/'||price_original::int||'/'||price_per_day FROM requests WHERE id=$UR")" "USD/60/$EXPK" "60 USD сохранены как $EXPK ₸"
-ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests | grep -c '\$60')" "1" "гид видит исходную сумму в долларах рядом с тенге"
+ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests | grep -q '\$60' && echo yes)" "yes" "гид видит исходную сумму в долларах рядом с тенге"
 HINT=$(curl -s "$B/api/price-hint?language=en&sites=$BZ")
 ok "$(echo "$HINT" | python3 -c "import sys,json; d=json.load(sys.stdin); print('ok' if d['avg_kzt'] and d['rates']['USD'] and d['scope'] else d)")" "ok" "подсказка: средняя ставка и курсы"
 

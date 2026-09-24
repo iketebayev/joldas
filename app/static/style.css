@@ -199,3 +199,8 @@ footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--m
 .price-group input { flex: 1; min-width: 0; }
 .price-group select { width: auto; flex: none; }
 .avg-hint { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: #e7f0fc; font-size: 14px; }
+
+/* календарь */
+input.flatpickr-input[readonly] { background: #fff; cursor: pointer; }
+input.invalid { outline: 2px solid var(--bad); }
+.flatpickr-calendar .flatpickr-day.selected, .flatpickr-calendar .flatpickr-day.selected:hover { background: var(--accent); border-color: var(--accent); }

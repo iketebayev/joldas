@@ -51,9 +51,11 @@
       {% endfor %}
       <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('fee.services_total') }}</b><b>{{ money(assignment.total) }}</b></div>
       {% if assignment.entry_fee %}
-        <div class="row between" style="margin-top:8px"><span>🎫 {{ t('fee.line') }}</span><span>{{ money(assignment.entry_fee) }}</span></div>
+        <div class="row between" style="margin-top:8px"><span>🎫 {{ t('fee.line') }}</span>
+          <span>{{ money(assignment.entry_fee) }}{% if is_owner and in_cur(assignment.entry_fee, req.currency) %}<br><span class="small muted">{{ in_cur(assignment.entry_fee, req.currency) }}</span>{% endif %}</span></div>
         <div class="hint" style="margin-top:2px">{{ t('fee.line_hint_guide') if is_assigned_guide else t('fee.line_hint_client') }}</div>
-        <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('fee.grand_total') }}</b><b>{{ money(assignment.total + assignment.entry_fee) }}</b></div>
+        <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('fee.grand_total') }}</b>
+          <b>{{ money(assignment.total + assignment.entry_fee) }}{% if is_owner and in_cur(assignment.total + assignment.entry_fee, req.currency) %}<br><span class="small muted" style="font-weight:400">{{ in_cur(assignment.total + assignment.entry_fee, req.currency) }}</span>{% endif %}</b></div>
       {% endif %}
     </div>
     <p>{{ m.status(t, assignment.status) }}</p>
@@ -119,7 +121,8 @@
     {% if req.status == 'open' %}<p class="small muted">{{ t('offers.hint') }}</p>{% endif %}
     {% if park_fee and req.status == 'open' %}
       <div class="park-fee on" style="margin:8px 0"><b>🎫 {{ t('fee.title') }}</b>
-        <p class="small" style="margin:6px 0 0">{{ t('fee.client_note', total=money(park_fee.total)) }}</p></div>
+        {% set fx_fee = in_cur(park_fee.total, req.currency, False) %}
+        <p class="small" style="margin:6px 0 0">{{ t('fee.client_note', total=(fx_fee ~ ' (' ~ money(park_fee.total) ~ ')') if fx_fee else money(park_fee.total)) }}</p></div>
     {% endif %}
     {% for o in offers %}
       <div class="offer">

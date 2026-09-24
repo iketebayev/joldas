@@ -1,6 +1,31 @@
 {% extends "base.html" %}
 {% block title %}{{ t('req.new_title') }}{% endblock %}
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+{% if lang == 'ru' %}<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/ru.min.js"></script>{% endif %}
+{% if lang == 'kk' %}<script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/l10n/kz.min.js"></script>{% endif %}
+<script>
+(function () {
+  const locale = {{ {'ru': 'ru', 'kk': 'kz', 'en': 'default'}[lang] | tojson }};
+  const fire = (el) => el.dispatchEvent(new Event("input", { bubbles: true }));
+  const opts = { dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", minDate: "today",
+                 disableMobile: true, locale: locale, allowInput: false };
+  const to = flatpickr("#date_to", { ...opts, onChange: () => fire(document.getElementById("date_to")) });
+  flatpickr("#date_from", { ...opts, onChange: (sel) => {
+    to.set("minDate", sel[0] || "today");
+    if (to.selectedDates[0] && sel[0] && to.selectedDates[0] < sel[0]) to.setDate(sel[0], true);
+    fire(document.getElementById("date_from"));
+  } });
+  // Скрытое поле с датой не участвует в проверке браузера — проверяем сами.
+  document.getElementById("req-form").addEventListener("submit", (e) => {
+    if (!document.getElementById("date_from").value) {
+      e.preventDefault();
+      const alt = document.getElementById("date_from").nextElementSibling;
+      alt.focus(); alt.classList.add("invalid");
+    }
+  });
+})();
+</script>
 <script>
 (function () {
   const cfg = {{ fee_cfg | tojson }};
@@ -26,9 +51,15 @@
     if (g > 12) { kind = g <= 16 ? "minibus" : (g <= 32 ? "bus" : "bus_big"); n = 1; }
     const transport = Math.round(cfg.vehicle[kind] * cfg.mrp) * n;
     const total = pp * g * d + transport;
-    $("park-fee-calc").innerHTML = tpl.replace("__T__", "<b>" + money(total) + "</b>").replace("__P__", g)
-      .replace("__D__", d).replace("__PP__", money(pp)).replace("__V__", veh[kind].replace("__N__", n) + " — " + money(transport));
+    // Суммы — в валюте, которую выбрал турист; итог ещё и в тенге (гид платит в тенге).
+    const cur = $("currency").value, rate = (window.__fx || {})[cur];
+    const inCur = (v) => (cur !== "KZT" && rate) ? window.__fmtCur(v / rate, cur) : money(v);
+    const totalTxt = (cur !== "KZT" && rate) ? inCur(total) + " (" + money(total) + ")" : money(total);
+    $("park-fee-calc").innerHTML = tpl.replace("__T__", "<b>" + totalTxt + "</b>").replace("__P__", g)
+      .replace("__D__", d).replace("__PP__", inCur(pp)).replace("__V__", veh[kind].replace("__N__", n) + " — " + inCur(transport));
   }
+  window.__feeUpdate = update;
+  document.getElementById("currency").addEventListener("change", update);
   document.querySelectorAll('input[name="site_ids"], #group_size, #date_from, #date_to')
     .forEach((el) => el.addEventListener("input", update));
   update();
@@ -48,6 +79,7 @@
   const fmt = (v, cur) => cur === "KZT"
     ? Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸"
     : signs[cur] + (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10).toLocaleString("en-US");
+  window.__fmtCur = fmt;
   function render() {
     const cur = $("currency").value, price = parseFloat(($("price_per_day").value || "").replace(",", "."));
     const rate = hint && hint.rates[cur];
@@ -72,8 +104,10 @@
     try {
       const r = await fetch(`/api/price-hint?language=${encodeURIComponent($("language").value)}&sites=${sites}`);
       hint = await r.json();
+      window.__fx = hint.rates;
     } catch (e) { hint = null; }
     render();
+    if (window.__feeUpdate) window.__feeUpdate();
   }
   $("language").addEventListener("change", load);
   document.querySelectorAll('input[name="site_ids"]').forEach((el) => el.addEventListener("change", load));
@@ -83,14 +117,17 @@
 })();
 </script>
 {% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+{% endblock %}
 {% block content %}
 <div class="form-narrow" style="max-width:640px">
 <h1>{{ t('req.new_title') }}</h1>
 <p class="muted">{{ t('req.new_hint') }}</p>
-<form class="card" method="post" action="/requests/new">
+<form class="card" method="post" action="/requests/new" id="req-form">
   <div class="grid g2" style="gap:12px">
-    <div><label for="date_from">{{ t('req.date_from') }}</label><input id="date_from" name="date_from" type="date" required></div>
-    <div><label for="date_to">{{ t('req.date_to') }}</label><input id="date_to" name="date_to" type="date"></div>
+    <div><label for="date_from">{{ t('req.date_from') }}</label><input id="date_from" name="date_from" type="text" placeholder="{{ t('req.pick_date') }}" autocomplete="off"></div>
+    <div><label for="date_to">{{ t('req.date_to') }}</label><input id="date_to" name="date_to" type="text" placeholder="{{ t('req.pick_date') }}" autocomplete="off"></div>
   </div>
   <label for="language">{{ t('req.language') }}</label>
   <select id="language" name="language" required>

@@ -46,6 +46,16 @@ async def render(request: Request, name: str, status_code: int = 200, **ctx):
             "SELECT count(*) FROM notifications WHERE user_id=$1 AND NOT is_read", user["id"]
         )
     flashes = request.session.pop("flash", [])
+    fx = {r["code"]: float(r["kzt"]) for r in await pool().fetch("SELECT code, kzt FROM exchange_rates")}
+
+    def in_cur(kzt, cur, approx=True) -> str:
+        """«≈ $38» — сумма в тенге, пересчитанная в валюту заказчика по текущему курсу."""
+        if not kzt or not cur or cur == "KZT" or cur not in fx:
+            return ""
+        v = kzt / fx[cur]
+        amount = f"{round(v):,}" if v >= 100 else f"{round(v, 1):g}"
+        value = f"{config.CURRENCY_SIGN.get(cur, cur)}{amount.replace(',', chr(160))}"
+        return f"≈ {value}" if approx else value
 
     def tr(key, /, **kw):
         return t(lang, key, **kw)
@@ -56,7 +66,7 @@ async def render(request: Request, name: str, status_code: int = 200, **ctx):
 
     ctx.update(
         request=request, lang=lang, user=user, unread=unread, flashes=flashes,
-        t=tr, name_of=name_of, money=money, price_label=price_label, app_name=config.APP_NAME,
+        t=tr, name_of=name_of, money=money, price_label=price_label, in_cur=in_cur, app_name=config.APP_NAME,
         ui_langs=config.UI_LANGS, guide_langs=config.GUIDE_LANGS,
         specializations=config.SPECIALIZATIONS, deposit_percent=config.DEPOSIT_PERCENT,
         countries=config.COUNTRIES, diets=config.DIETS, risks=config.RISKS,

@@ -411,6 +411,7 @@
  "req.note_placeholder": "Route, transport, special wishes…",
  "req.offers_n": "responses: {n}",
  "req.people_n": "{n} people",
+ "req.pick_date": "Pick a date",
  "req.price": "Your price per day",
  "req.price_hint": "A guide can accept this price or offer their own.",
  "req.publish": "Publish request",
