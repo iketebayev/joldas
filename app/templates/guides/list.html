@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('guides.title') }}{% endblock %}
+{% block content %}
+<h1>{{ t('guides.title') }}</h1>
+<p class="muted">{{ t('guides.subtitle') }}</p>
+
+<form class="card" method="get" action="/guides" style="margin:16px 0">
+  <div class="grid g3" style="gap:10px">
+    <div><label for="language">{{ t('guides.f_language') }}</label>
+      <select id="language" name="language"><option value="">{{ t('common.all') }}</option>
+        {% for c in guide_langs %}<option value="{{ c }}" {{ 'selected' if f.language == c }}>{{ t('lang.' ~ c) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="spec">{{ t('guides.f_spec') }}</label>
+      <select id="spec" name="spec"><option value="">{{ t('common.all') }}</option>
+        {% for s in specializations %}<option value="{{ s }}" {{ 'selected' if f.spec == s }}>{{ t('spec.' ~ s) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="site">{{ t('guides.f_site') }}</label>
+      <select id="site" name="site"><option value="">{{ t('common.all') }}</option>
+        {% for s in sites %}<option value="{{ s.id }}" {{ 'selected' if f.site == s.id }}>{{ name_of(s) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="level">{{ t('guides.f_level') }}</label>
+      <select id="level" name="level"><option value="">{{ t('common.all') }}</option>
+        <option value="experienced" {{ 'selected' if f.level == 'experienced' }}>{{ t('guides.level_exp_plus') }}</option>
+        <option value="expert" {{ 'selected' if f.level == 'expert' }}>{{ t('level.expert') }}</option>
+      </select></div>
+  </div>
+  <div class="row" style="margin-top:14px">
+    <button class="btn small">{{ t('common.filter') }}</button>
+    <a class="btn small ghost" href="/guides">{{ t('common.reset') }}</a>
+    <span class="small muted">{{ t('guides.sorted') }}</span>
+  </div>
+</form>
+
+<div class="grid g2">
+{% for g in rows %}
+  <a class="card guide-card" href="/guides/{{ g.id }}" style="color:inherit;text-decoration:none">
+    <div class="avatar">{{ m.initial(g.name) }}</div>
+    <div class="body">
+      <div class="row between"><h3>{{ g.name }}</h3>{% if g.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+      <div class="small">{{ m.rating(t, g.rating, g.reviews_count) }}</div>
+      <div class="tags" style="margin-top:8px">{{ m.level(t, g.level) }}{{ m.langs(t, g.languages) }}</div>
+      <div class="small muted" style="margin-top:8px">
+        {{ t('guides.done_n', n=g.completed_count) }}{% if g.day_rate %} · {{ t('guides.from') }} {{ money(g.day_rate) }} / {{ t('common.day') }}{% endif %}
+      </div>
+    </div>
+  </a>
+{% else %}
+  <div class="card empty">{{ t('guides.empty') }}</div>
+{% endfor %}
+</div>
+{% endblock %}

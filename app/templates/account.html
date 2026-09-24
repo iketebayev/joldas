@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('account.title') }}{% endblock %}
+{% block content %}
+<div class="form-narrow" style="max-width:560px">
+<div class="row" style="gap:14px;margin-bottom:8px">
+  <div class="avatar big">{{ m.initial(user.name) }}</div>
+  <div><h1 style="margin:0">{{ user.name }}</h1>
+    <span class="badge">{{ t('role.' ~ user.role) }}</span>
+    {% if user.rating %}<span class="small">{{ m.rating(t, user.rating, user.reviews_count) }}</span>{% endif %}</div>
+</div>
+{% if user.role == 'guide' %}
+  <p class="small"><a href="/profile">{{ t('account.guide_profile') }} →</a> · <a href="/guides/{{ user.id }}">{{ t('profile.view_public') }} →</a></p>
+{% endif %}
+
+<form class="card" method="post" action="/account">
+  <h3>{{ t('account.data') }}</h3>
+  <label for="name">{{ t('auth.name') }}</label>
+  <input id="name" name="name" type="text" value="{{ user.name }}" required>
+  {% if company %}
+    <label for="company_name">{{ t('auth.company_name') }}</label>
+    <input id="company_name" name="company_name" type="text" value="{{ company.name }}">
+  {% endif %}
+  <label for="phone">{{ t('auth.phone') }}</label>
+  <input id="phone" name="phone" type="tel" value="{{ user.phone or '' }}" placeholder="+7 7__ ___ __ __">
+  <div class="hint">{{ t('auth.phone_hint') }}</div>
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" value="{{ user.email or '' }}">
+  <label for="ui_lang">{{ t('account.ui_lang') }}</label>
+  <select id="ui_lang" name="ui_lang">
+    {% for l in ui_langs %}<option value="{{ l }}" {{ 'selected' if l == user.ui_lang }}>{{ {'kk':'Қазақша','ru':'Русский','en':'English'}[l] }}</option>{% endfor %}
+  </select>
+  <div class="hint">{{ t('account.ui_lang_hint') }}</div>
+  <button class="btn" style="margin-top:18px">{{ t('common.save') }}</button>
+</form>
+
+<form class="card" method="post" action="/account/password" style="margin-top:16px">
+  <h3>{{ t('account.password_title') }}</h3>
+  <label for="current_password">{{ t('account.current_password') }}</label>
+  <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+  <label for="new_password">{{ t('account.new_password') }}</label>
+  <input id="new_password" name="new_password" type="password" autocomplete="new-password" minlength="6" required>
+  <div class="hint">{{ t('auth.password_hint') }}</div>
+  <label for="confirm_password">{{ t('account.confirm_password') }}</label>
+  <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" minlength="6" required>
+  <button class="btn ghost" style="margin-top:18px">{{ t('account.change_password') }}</button>
+</form>
+</div>
+{% endblock %}

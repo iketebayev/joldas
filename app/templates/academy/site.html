@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ name_of(s) }} · {{ t('ac.title') }}{% endblock %}
+{% block content %}
+<a href="/academy" class="small">← {{ t('ac.title') }}</a>
+<div class="tags" style="margin:12px 0 6px">
+  {% if c.unesco %}<span class="badge level-expert">{{ t('ac.unesco') }}</span>{% endif %}
+  {% if c.fee %}<span class="badge urgent">{{ t('ac.paid_entry') }}</span>{% endif %}
+  {% if c.draft %}<span class="badge demo">{{ t('ac.draft') }}</span>{% endif %}
+</div>
+<h1>{{ name_of(s) }}</h1>
+<p class="muted" style="font-size:18px;max-width:760px">{{ c.tagline }}</p>
+
+<div class="grid g2" style="margin-top:16px">
+  {% if c.tell %}
+  <div class="card"><h3>🗣 {{ t('ac.tell') }}</h3><ul>{% for x in c.tell %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul></div>
+  {% endif %}
+  <div class="card">
+    <h3>🚙 {{ t('ac.how') }}</h3><ul>{% for x in c.how %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul>
+    <p class="small muted">{{ t('ac.coords') }}: {{ '%.4f' | format(s.lat) }}, {{ '%.4f' | format(s.lon) }} ·
+      <a href="https://www.openstreetmap.org/?mlat={{ s.lat }}&mlon={{ s.lon }}#map=11/{{ s.lat }}/{{ s.lon }}" target="_blank" rel="noopener">{{ t('ac.open_map') }}</a></p>
+  </div>
+  {% if c.tips %}
+  <div class="card"><h3>💡 {{ t('ac.tips') }}</h3><ul>{% for x in c.tips %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul>
+    {% if c.fee %}<p class="hint">{{ t('ac.fee_note') }} — <a href="{{ fee_source[1] }}" target="_blank" rel="noopener">{{ t('ac.source') }}</a></p>{% endif %}</div>
+  {% endif %}
+  {% if c.safety %}
+  <div class="card" style="border-color:#f0caca"><h3>⚠️ {{ t('ac.safety') }}</h3><ul>{% for x in c.safety %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul></div>
+  {% endif %}
+</div>
+
+{% if c.terms %}
+<h2>{{ t('ac.terms') }}</h2>
+<div class="card table-wrap"><table class="data">
+  <thead><tr><th>English</th><th>{{ t('ac.meaning') }}</th></tr></thead>
+  <tbody>{% for en, ru, kk in c.terms %}<tr><td><b>{{ en }}</b></td><td>{{ kk if lang == 'kk' else ru }}</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endif %}
+
+{% if c.draft %}<div class="flash" style="margin-top:20px;background:#eef0f3;border-color:#dde1e6">{{ t('ac.draft_text') }}</div>{% endif %}
+
+{% if c.sources %}
+<h2>{{ t('ac.read_more') }}</h2>
+<div class="card"><ul>{% for n, u in c.sources %}<li><a href="{{ u }}" target="_blank" rel="noopener">{{ n }}</a></li>{% endfor %}</ul></div>
+{% endif %}
+
+<div class="card row between" style="margin-top:20px">
+  <span>{{ t('ac.guides_here', n=guides) }}</span>
+  <a class="btn small" href="/guides?site={{ s.id }}">{{ t('ac.find_guide') }}</a>
+</div>
+{% endblock %}

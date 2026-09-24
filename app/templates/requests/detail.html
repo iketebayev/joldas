@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('req.detail_title', id=req.id) }}{% endblock %}
+{% block content %}
+<a href="/requests" class="small">← {{ t('common.back') }}</a>
+<div class="row between" style="margin-top:8px">
+  <h1>{{ t('req.detail_title', id=req.id) }}</h1>
+  <div class="row">{{ m.status(t, req.status) }}{% if req.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+</div>
+
+<div class="grid g2">
+<div class="card">
+  <dl class="kv">
+    <dt>{{ t('req.dates') }}</dt><dd><b>{{ m.dates(req) }}</b></dd>
+    <dt>{{ t('req.language') }}</dt><dd>{{ t('lang.' ~ req.language) }}</dd>
+    <dt>{{ t('req.group') }}</dt><dd>{{ t('req.people_n', n=req.group_size) }}</dd>
+    <dt>{{ t('req.sites') }}</dt><dd>{{ m.site_names(sites, req.site_ids, name_of) or t('req.any_sites') }}</dd>
+    <dt>{{ t('req.price') }}</dt><dd><b>{{ money(req.price_per_day) }}</b> / {{ t('common.day') }}</dd>
+    <dt>{{ t('req.client') }}</dt><dd>{{ req.company_name or req.author_name }} <span class="small muted">· {{ t('role.' ~ req.author_type) }}</span>
+      {% if req.author_rating %}<div class="small">{{ m.rating(t, req.author_rating, req.author_reviews) }}</div>{% endif %}</dd>
+  </dl>
+  {% if req.note %}<p class="small" style="margin-top:14px;white-space:pre-line">{{ req.note }}</p>{% endif %}
+</div>
+
+<div class="card">
+  {# ---------- назначенный гид / статус ---------- #}
+  {% if assignment and assignment.status != 'cancelled' %}
+    <h3>{{ t('a.title') }}</h3>
+    {% if guide %}
+      <div class="guide-card" style="margin:10px 0">
+        <div class="avatar">{{ m.initial(guide.name) }}</div>
+        <div class="body"><b><a href="/guides/{{ guide.id }}">{{ guide.name }}</a></b>
+          <div class="small">{{ m.rating(t, guide.rating, guide.reviews_count) }}</div>
+          <div style="margin-top:4px">{{ m.level(t, guide.level) }}</div></div>
+      </div>
+    {% endif %}
+    <p class="small">{{ t('common.days_n', n=assignment.days) }} × {{ money(assignment.price_per_day) }} = <b>{{ money(assignment.total) }}</b></p>
+    <p>{{ m.status(t, assignment.status) }}</p>
+
+    {% if contacts %}
+      <div class="contacts"><b>{{ t('a.contacts') }}</b><br>{{ contacts.name }}
+        {% if contacts.phone %}<br><a href="tel:{{ contacts.phone }}">{{ contacts.phone }}</a>{% endif %}
+        {% if contacts.email %}<br><a href="mailto:{{ contacts.email }}">{{ contacts.email }}</a>{% endif %}</div>
+    {% elif is_owner or is_assigned_guide %}
+      <div class="lock">🔒 {{ t('a.contacts_locked') }}</div>
+    {% endif %}
+
+    {% if is_owner and assignment.status == 'awaiting_payment' %}
+      <div class="card" style="margin-top:14px;box-shadow:none">
+        <b>{{ t('pay.title') }}</b>
+        <p class="small">{{ t('pay.text', pct=deposit_percent, amount=money(deposit), rest=money(assignment.total - deposit)) }}</p>
+        <form method="post" action="/assignments/{{ assignment.id }}/pay"><button class="btn block">{{ t('pay.btn', amount=money(deposit)) }}</button></form>
+        <p class="hint">{{ t('pay.test_mode') }}</p>
+      </div>
+    {% endif %}
+
+    {% if is_owner and assignment.status == 'confirmed' %}
+      <form method="post" action="/assignments/{{ assignment.id }}/complete" style="margin-top:14px">
+        <button class="btn block dark">{{ t('a.complete_btn') }}</button></form>
+    {% endif %}
+
+    {% if assignment.status == 'done' and (is_owner or is_assigned_guide) %}
+      {% if my_review %}<p class="small" style="margin-top:14px">✓ {{ t('review.left') }}</p>
+      {% else %}<a class="btn block" style="margin-top:14px" href="/assignments/{{ assignment.id }}/review">★ {{ t('review.leave_btn') }}</a>{% endif %}
+    {% endif %}
+
+    {% if assignment.status in ('awaiting_payment', 'confirmed') and (is_owner or is_assigned_guide) %}
+      <form method="post" action="/assignments/{{ assignment.id }}/cancel" style="margin-top:12px"
+            onsubmit='return confirm({{ (t("a.cancel_confirm_guide") if is_assigned_guide else t("a.cancel_confirm_client")) | tojson }})'>
+        <button class="btn block danger">{{ t('a.cancel_btn') }}</button></form>
+      <p class="hint">{{ t('a.cancel_rules_guide') if is_assigned_guide else t('a.cancel_rules_client') }}</p>
+    {% endif %}
+
+  {# ---------- гид: отклик ---------- #}
+  {% elif user.role == 'guide' and req.status == 'open' %}
+    <h3>{{ t('offer.title') }}</h3>
+    {% if my_offer and my_offer.status == 'pending' %}
+      <p class="small">{{ t('offer.yours', price=money(my_offer.price_per_day)) }}</p>
+    {% endif %}
+    <form method="post" action="/requests/{{ req.id }}/offer">
+      <label for="message">{{ t('offer.message') }}</label>
+      <textarea id="message" name="message" placeholder="{{ t('offer.message_placeholder') }}"></textarea>
+      <button class="btn block" name="action" value="accept" style="margin-top:12px">{{ t('offer.accept', price=money(req.price_per_day)) }}</button>
+      <button type="button" class="btn block ghost" style="margin-top:8px" data-counter-toggle="counter">{{ t('offer.counter') }}</button>
+      <div id="counter" hidden style="margin-top:10px">
+        <label for="price">{{ t('offer.your_price') }}, ₸</label>
+        <input id="price" name="price" type="number" min="1000" step="1000">
+        <button class="btn block dark" name="action" value="counter" style="margin-top:8px">{{ t('offer.send_counter') }}</button>
+      </div>
+    </form>
+
+  {# ---------- заказчик: отклики ---------- #}
+  {% elif is_owner or user.role == 'admin' %}
+    <h3>{{ t('offers.title') }}</h3>
+    {% if req.status == 'open' %}<p class="small muted">{{ t('offers.hint') }}</p>{% endif %}
+    {% for o in offers %}
+      <div class="offer">
+        <div class="guide-card">
+          <div class="avatar">{{ m.initial(o.name) }}</div>
+          <div class="body"><b><a href="/guides/{{ o.guide_id }}">{{ o.name }}</a></b>
+            <div class="small">{{ m.rating(t, o.rating, o.reviews_count) }}</div>
+            <div class="tags" style="margin-top:4px">{{ m.level(t, o.level) }}<span class="badge">{{ t('guides.done_n', n=o.completed_count) }}</span></div>
+            {% if o.message %}<p class="small" style="margin:6px 0 0">«{{ o.message }}»</p>{% endif %}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="price" style="font-weight:800">{{ money(o.price_per_day) }}</div>
+          {% if o.price_per_day != req.price_per_day %}<div class="small muted">{{ t('offers.counter_badge') }}</div>{% endif %}
+          {% if is_owner and req.status == 'open' and o.status == 'pending' %}
+            <form method="post" action="/offers/{{ o.id }}/choose" style="margin-top:6px"><button class="btn small">{{ t('offers.choose') }}</button></form>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="empty">{{ t('offers.empty') }}</div>
+    {% endfor %}
+    {% if is_owner and req.status == 'open' %}
+      <form method="post" action="/requests/{{ req.id }}/cancel" style="margin-top:16px"
+            onsubmit='return confirm({{ t("req.cancel_confirm") | tojson }})'>
+        <button class="btn block danger small">{{ t('req.cancel_btn') }}</button>
+      </form>
+    {% endif %}
+  {% else %}
+    <p class="muted">{{ t('req.closed') }}</p>
+  {% endif %}
+</div>
+</div>
+{% endblock %}

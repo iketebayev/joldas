@@ -1,0 +1,10 @@
+.env
+*.pyc
+__pycache__/
+node_modules/
+.venv/
+venv/
+CLAUDE.md
+GEMINI.md
+data/
+*.log

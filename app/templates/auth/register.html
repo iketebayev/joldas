@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ t('auth.register_title') }}{% endblock %}
+{% block content %}
+<div class="card form-narrow">
+  <h1>{{ t('auth.register_title') }}</h1>
+  <div class="row" style="margin:12px 0 4px">
+    {% for r in ['guide','company','tourist'] %}
+      <a class="btn small {{ '' if r == role else 'ghost' }}" href="/register?role={{ r }}">{{ t('role.' ~ r) }}</a>
+    {% endfor %}
+  </div>
+  <p class="small muted">{{ t('auth.role_hint_' ~ role) }}</p>
+  <form method="post" action="/register">
+    <input type="hidden" name="role" value="{{ role }}">
+    <label for="name">{{ t('auth.name') }}</label>
+    <input id="name" name="name" type="text" autocomplete="name" required>
+    {% if role == 'company' %}
+      <label for="company_name">{{ t('auth.company_name') }}</label>
+      <input id="company_name" name="company_name" type="text" required>
+    {% endif %}
+    <label for="phone">{{ t('auth.phone') }}</label>
+    <input id="phone" name="phone" type="tel" autocomplete="tel" placeholder="+7 7__ ___ __ __">
+    <div class="hint">{{ t('auth.phone_hint') }}</div>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" autocomplete="email">
+    <label for="password">{{ t('auth.password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" required>
+    <div class="hint">{{ t('auth.password_hint') }}</div>
+    <button class="btn block" style="margin-top:18px">{{ t('auth.register_btn') }}</button>
+  </form>
+  <p class="small muted" style="margin-top:16px">{{ t('auth.have_account') }} <a href="/login">{{ t('nav.login') }}</a></p>
+</div>
+{% endblock %}

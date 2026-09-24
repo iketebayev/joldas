@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.profile') }}{% endblock %}
+{% block content %}
+<div class="row between"><h1>{{ t('profile.edit_title') }}</h1><a href="/guides/{{ user.id }}">{{ t('profile.view_public') }} →</a></div>
+<p class="muted">{{ t('profile.edit_hint') }}</p>
+<form class="card" method="post" action="/profile">
+  <label>{{ t('profile.languages') }}</label>
+  <div class="checks">{% for c in guide_langs %}
+    <label><input type="checkbox" name="languages" value="{{ c }}" {{ 'checked' if c in g.languages }}> {{ t('lang.' ~ c) }}</label>{% endfor %}</div>
+  <div class="hint">{{ t('profile.languages_hint') }}</div>
+
+  <label>{{ t('profile.specializations') }}</label>
+  <div class="checks">{% for s in specializations %}
+    <label><input type="checkbox" name="specializations" value="{{ s }}" {{ 'checked' if s in g.specializations }}> {{ t('spec.' ~ s) }}</label>{% endfor %}</div>
+
+  <label>{{ t('profile.sites') }}</label>
+  <div class="checks">{% for s in sites %}
+    <label><input type="checkbox" name="site_ids" value="{{ s.id }}" {{ 'checked' if s.id in g.site_ids }}> {{ name_of(s) }}</label>{% endfor %}</div>
+
+  <div class="grid g2" style="gap:12px">
+    <div><label for="day_rate">{{ t('profile.day_rate') }}, ₸</label>
+      <input id="day_rate" name="day_rate" type="number" min="0" step="1000" value="{{ g.day_rate or '' }}"></div>
+    <div><label for="experience_years">{{ t('profile.experience') }}</label>
+      <input id="experience_years" name="experience_years" type="number" min="0" max="60" value="{{ g.experience_years or '' }}">
+      <div class="hint">{{ t('profile.experience_hint') }}</div></div>
+  </div>
+  <label for="bio">{{ t('profile.bio') }}</label>
+  <textarea id="bio" name="bio" placeholder="{{ t('profile.bio_placeholder') }}">{{ g.bio or '' }}</textarea>
+  <label for="external_links">{{ t('profile.external') }}</label>
+  <input id="external_links" name="external_links" type="text" value="{{ g.external_links or '' }}" placeholder="TripAdvisor, GetYourGuide…">
+  <button class="btn" style="margin-top:18px">{{ t('common.save') }}</button>
+</form>
+{% endblock %}

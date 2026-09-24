@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('nav.requests') }}{% endblock %}
+{% block content %}
+<div class="row between">
+  <h1>{{ t('req.mine_title') }}</h1>
+  <a class="btn" href="/requests/new">+ {{ t('req.new_btn') }}</a>
+</div>
+{% if company %}
+  <p class="small muted">{{ t('billing.current_plan') }}: <b>{{ t('billing.plan_' ~ company.plan) }}</b>
+  {% if company.plan == 'start' %} · <a href="/pricing">{{ t('billing.upgrade') }}</a>{% endif %}</p>
+{% endif %}
+<div class="grid" style="margin-top:12px">
+{% for r in rows %}
+  <a class="card req" href="/requests/{{ r.id }}" style="color:inherit;text-decoration:none">
+    <div class="row between">
+      <div class="row">{{ m.status(t, r.status) }}<span class="badge">{{ t('lang.' ~ r.language) }}</span>
+        {% if r.urgent %}<span class="badge urgent">{{ t('req.urgent_badge') }}</span>{% endif %}</div>
+      <div class="price">{{ money(r.price_per_day) }} <span class="small muted">/ {{ t('common.day') }}</span></div>
+    </div>
+    <div><b>{{ m.dates(r) }}</b> · {{ t('req.people_n', n=r.group_size) }}</div>
+    <div class="small muted">{{ m.site_names(sites, r.site_ids, name_of) or t('req.any_sites') }}</div>
+    {% if r.status == 'open' %}<div class="small"><b>{{ t('req.offers_n', n=r.offers_count) }}</b></div>{% endif %}
+  </a>
+{% else %}
+  <div class="card empty">
+    <p>{{ t('req.mine_empty') }}</p>
+    <a class="btn" href="/requests/new">{{ t('req.new_btn') }}</a>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

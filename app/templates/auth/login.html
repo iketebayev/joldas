@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ t('auth.login_title') }}{% endblock %}
+{% block content %}
+<div class="card form-narrow">
+  <h1>{{ t('auth.login_title') }}</h1>
+  <form method="post" action="/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label for="login">{{ t('auth.login_field') }}</label>
+    <input id="login" name="login" type="text" autocomplete="username" required>
+    <label for="password">{{ t('auth.password') }}</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button class="btn block" style="margin-top:18px">{{ t('auth.login_btn') }}</button>
+  </form>
+  <p class="small muted" style="margin-top:16px">{{ t('auth.no_account') }}
+    <a href="/register?role=guide">{{ t('role.guide') }}</a> ·
+    <a href="/register?role=company">{{ t('role.company') }}</a> ·
+    <a href="/register?role=tourist">{{ t('role.tourist') }}</a></p>
+</div>
+{% endblock %}

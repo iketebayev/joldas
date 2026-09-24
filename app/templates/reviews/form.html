@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ t('review.form_title') }}{% endblock %}
+{% macro pick(name, required=False) -%}
+  <div class="score-pick" role="radiogroup">
+  {% for i in range(1, 6) %}
+    <input type="radio" id="{{ name }}{{ i }}" name="{{ name }}" value="{{ i }}" {{ 'required' if required }}>
+    <label for="{{ name }}{{ i }}">{{ i }}</label>
+  {% endfor %}
+  </div>
+{%- endmacro %}
+{% block content %}
+<div class="form-narrow" style="max-width:560px">
+<h1>{{ t('review.form_title') }}</h1>
+<p class="muted">{{ t('review.about_guide' if about_guide else 'review.about_client', name=target.name) }}</p>
+<form class="card" method="post" action="/assignments/{{ a.id }}/review">
+  <label>{{ t('review.overall') }} *</label>
+  {{ pick('overall', True) }}
+  {% if about_guide %}
+    {% for c in criteria %}
+      <label>{{ t('review.' ~ c) }}</label>
+      {{ pick(c) }}
+    {% endfor %}
+  {% endif %}
+  <label for="text">{{ t('review.text') }}</label>
+  <textarea id="text" name="text" placeholder="{{ t('review.text_placeholder') }}"></textarea>
+  <p class="hint">{{ t('review.once_hint') }}</p>
+  <button class="btn block" style="margin-top:12px">{{ t('review.submit') }}</button>
+</form>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('index.title') }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <span class="badge">{{ t('index.eyebrow') }}</span>
+    <h1 style="margin-top:14px">{{ t('index.h1') }}</h1>
+    <p class="lead">{{ t('index.lead') }}</p>
+    <div class="row">
+      <a class="btn" href="/register?role=company">{{ t('index.cta_company') }}</a>
+      <a class="btn ghost" href="/register?role=guide">{{ t('index.cta_guide') }}</a>
+    </div>
+    <p class="small muted" style="margin-top:14px">{{ t('index.tourist_line') }} <a href="/register?role=tourist">{{ t('index.cta_tourist') }}</a></p>
+  </div>
+  <div class="art" aria-hidden="true"></div>
+</section>
+
+<div class="kpis" style="margin-top:12px">
+  <div class="card kpi"><div class="v">{{ stats.guides }}</div><div class="l">{{ t('index.stat_guides') }}</div></div>
+  <div class="card kpi"><div class="v">{{ stats.languages }}</div><div class="l">{{ t('index.stat_langs') }}</div></div>
+  <div class="card kpi"><div class="v">{{ stats.open_requests }}</div><div class="l">{{ t('index.stat_open') }}</div></div>
+</div>
+
+<h2>{{ t('index.how') }}</h2>
+<div class="grid g3">
+  <div class="card step"><b>1</b><div><h3>{{ t('index.step1') }}</h3><p class="muted small">{{ t('index.step1_text') }}</p></div></div>
+  <div class="card step"><b>2</b><div><h3>{{ t('index.step2') }}</h3><p class="muted small">{{ t('index.step2_text') }}</p></div></div>
+  <div class="card step"><b>3</b><div><h3>{{ t('index.step3') }}</h3><p class="muted small">{{ t('index.step3_text') }}</p></div></div>
+</div>
+
+<h2>{{ t('index.trust') }}</h2>
+<div class="grid g3">
+  <div class="card"><h3>{{ t('index.trust1') }}</h3><p class="muted small">{{ t('index.trust1_text') }}</p></div>
+  <div class="card"><h3>{{ t('index.trust2') }}</h3><p class="muted small">{{ t('index.trust2_text') }}</p></div>
+  <div class="card"><h3>{{ t('index.trust3') }}</h3><p class="muted small">{{ t('index.trust3_text') }}</p></div>
+</div>
+
+{% if top %}
+<h2>{{ t('index.top') }}</h2>
+<div class="grid g3">
+  {% for g in top %}
+  <a class="card guide-card" href="/guides/{{ g.id }}" style="color:inherit">
+    <div class="avatar">{{ m.initial(g.name) }}</div>
+    <div class="body">
+      <h3>{{ g.name }}</h3>
+      <div class="small">{{ m.rating(t, g.rating, g.reviews_count) }}</div>
+      <div class="tags" style="margin-top:8px">{{ m.level(t, g.level) }}{{ m.langs(t, g.languages[:3]) }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+<p style="margin-top:14px"><a href="/guides">{{ t('index.all_guides') }} →</a></p>
+{% endif %}
+{% endblock %}

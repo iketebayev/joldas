@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ g.name }}{% endblock %}
+{% block content %}
+<div class="grid" style="grid-template-columns:minmax(0,1fr)">
+<div class="card">
+  <div class="guide-card">
+    <div class="avatar big">{{ m.initial(g.name) }}</div>
+    <div class="body">
+      <div class="row between"><h1>{{ g.name }}</h1>{% if g.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+      <div>{{ m.rating(t, g.rating, g.reviews_count) }}</div>
+      <div class="tags" style="margin-top:10px">{{ m.level(t, g.level) }}
+        <span class="badge">{{ t('guides.done_n', n=g.completed_count) }}</span></div>
+    </div>
+  </div>
+  {% if g.bio %}<p style="margin-top:16px">{{ g.bio }}</p>{% endif %}
+  <dl class="kv" style="margin-top:16px">
+    <dt>{{ t('profile.languages') }}</dt><dd><div class="tags">{{ m.langs(t, g.languages) }}</div></dd>
+    <dt>{{ t('profile.specializations') }}</dt><dd><div class="tags">{% for s in g.specializations %}<span class="badge">{{ t('spec.' ~ s) }}</span>{% endfor %}</div></dd>
+    {% if sites %}<dt>{{ t('profile.sites') }}</dt><dd>{% for s in sites %}{{ name_of(s) }}{{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
+    {% if g.day_rate %}<dt>{{ t('profile.day_rate') }}</dt><dd>{{ money(g.day_rate) }}</dd>{% endif %}
+    {% if g.experience_years %}<dt>{{ t('profile.experience') }}</dt><dd>{{ t('profile.years_n', n=g.experience_years) }} <span class="small muted">({{ t('profile.self_declared') }})</span></dd>{% endif %}
+    {% if g.external_links %}<dt>{{ t('profile.external') }}</dt><dd class="small">{{ g.external_links }}</dd>{% endif %}
+  </dl>
+  <p class="small muted" style="margin-top:14px">{{ t('level.hint_' ~ g.level) }}</p>
+  {% if not user or user.id != g.id %}
+    <div style="margin-top:16px">
+      <a class="btn" href="/requests/new">+ {{ t('req.new_btn') }}</a>
+    </div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">{{ t('guide.reviews_title') }}</h2>
+  {% if criteria and (criteria.route or criteria.language or criteria.punctuality or criteria.communication) %}
+  <div class="crit" style="margin-bottom:18px">
+    {% for key in ['route','language','punctuality','communication'] %}
+      {% set v = criteria[key] %}
+      <div>{{ t('review.c_' ~ key) }}<div class="meter"><i style="width:{{ (v / 5 * 100) | round if v else 0 }}%"></i></div></div>
+      <div class="rating">{{ ('%.1f' | format(v)) if v else '—' }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% for r in reviews %}
+    <div class="review">
+      <div class="row between">
+        <div>{{ m.stars(r.overall) }}
+          {% if r.is_system %}<span class="badge st-cancelled">{{ t('review.system_cancel') }}</span>
+          {% else %}<b>{{ r.author_name }}</b> <span class="small muted">· {{ t('role.' ~ r.author_role) }}</span>{% endif %}
+        </div>
+        <span class="small muted">{{ r.created_at.strftime('%d.%m.%Y') }}</span>
+      </div>
+      {% if not r.is_system %}<div class="small" style="color:#0a6e0a;margin-top:2px">✓ {{ t('review.verified') }}</div>{% endif %}
+      {% if r.text %}<p style="margin:8px 0 0">{{ r.text }}</p>{% endif %}
+      {% if r.reply %}<div class="reply"><b>{{ t('review.guide_reply') }}:</b> {{ r.reply }}</div>
+      {% elif user and user.id == g.id and not r.is_system %}
+        <form method="post" action="/reviews/{{ r.id }}/reply" style="margin-top:10px">
+          <textarea name="reply" required placeholder="{{ t('review.reply_placeholder') }}" style="min-height:60px"></textarea>
+          <button class="btn small ghost" style="margin-top:6px">{{ t('review.reply_btn') }}</button>
+        </form>
+      {% endif %}
+      {% if user and user.id != g.id and not r.is_system %}
+        <form method="post" action="/reviews/{{ r.id }}/report" class="inline">
+          <button class="linkbtn small">{{ t('review.report') }}</button></form>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="empty">{{ t('common.no_reviews') }}</div>
+  {% endfor %}
+</div>
+</div>
+{% endblock %}

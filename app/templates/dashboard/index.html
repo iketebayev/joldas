@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ t('dash.title') }}{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+{% endblock %}
+{% set ramp = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#256abf', '#184f95', '#0d366b'] %}
+{% block content %}
+<h1>{{ t('dash.title') }}</h1>
+<p class="muted">{{ t('dash.subtitle') }}</p>
+
+<div class="kpis" style="margin-top:16px">
+  <div class="card kpi"><div class="v">{{ totals.all }}</div><div class="l">{{ t('dash.k_requests') }}</div></div>
+  <div class="card kpi"><div class="v">{{ totals.open }}</div><div class="l">{{ t('dash.k_open') }}</div></div>
+  <div class="card kpi"><div class="v">{{ fill_rate }}%</div><div class="l">{{ t('dash.k_fill') }}</div></div>
+  <div class="card kpi"><div class="v">{{ fin.guides }}</div><div class="l">{{ t('dash.k_guides') }}</div></div>
+  <div class="card kpi"><div class="v">{{ '%.2f' | format(fin.avg_rating) if fin.avg_rating else '—' }}</div><div class="l">{{ t('dash.k_rating') }}</div></div>
+  <div class="card kpi"><div class="v" style="font-size:24px">{{ money(fin.avg_rate) if fin.avg_rate else '—' }}</div><div class="l">{{ t('dash.k_rate') }}</div></div>
+</div>
+
+<h2>{{ t('dash.deficit_title') }}</h2>
+<p class="small muted">{{ t('dash.deficit_hint') }}</p>
+<div class="card table-wrap">
+  {% set maxno = (by_lang | map(attribute='no_offers') | max) if by_lang else 0 %}
+  <table class="data">
+    <thead><tr>
+      <th>{{ t('dash.col_lang') }}</th><th class="num">{{ t('dash.col_guides') }}</th>
+      <th class="num">{{ t('dash.col_total') }}</th><th class="num">{{ t('dash.col_open') }}</th>
+      <th style="min-width:180px">{{ t('dash.col_no_offers') }}</th><th class="num">{{ t('dash.col_filled') }}</th>
+    </tr></thead>
+    <tbody>
+    {% for r in by_lang %}
+      {% set pct = (100 * r.filled / r.total) | round | int if r.total else 0 %}
+      <tr>
+        <td><b>{{ t('lang.' ~ r.language) }}</b></td>
+        <td class="num">{{ r.guides }}</td>
+        <td class="num">{{ r.total }}</td>
+        <td class="num">{{ r.open }}</td>
+        <td>
+          <div class="row" style="gap:8px;flex-wrap:nowrap">
+            {% if r.no_offers %}<div class="bar" style="width:{{ (r.no_offers / maxno * 140) | round }}px"
+                 data-tip="{{ t('dash.tip_no_offers', lang=t('lang.' ~ r.language), n=r.no_offers, guides=r.guides) }}"></div>{% endif %}
+            <span class="small"><b>{{ r.no_offers }}</b></span>
+          </div>
+        </td>
+        <td class="num">{{ pct }}%</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>{{ t('dash.heat_title') }}</h2>
+<p class="small muted">{{ t('dash.heat_hint') }}</p>
+<div class="card table-wrap">
+  <table class="data heat">
+    <thead><tr><th>{{ t('dash.col_lang') }}</th>{% for mth in months %}<th style="text-align:center">{{ mth[5:] }}.{{ mth[:4] }}</th>{% endfor %}</tr></thead>
+    <tbody>
+    {% for lg in heat_langs %}
+      <tr><td><b>{{ t('lang.' ~ lg) }}</b></td>
+      {% for mth in months %}
+        {% set h = heat_map.get((lg, mth)) %}
+        {% if h and h.total %}
+          {% set pct = (100 * h.filled / h.total) | round | int %}
+          {% set step = [((pct / 100) * 6) | round | int, 6] | min %}
+          <td class="cell" style="background:{{ ramp[step] }};color:{{ '#fff' if step >= 3 else '#1d1a16' }}"
+              data-tip="{{ t('dash.tip_heat', lang=t('lang.' ~ lg), month=mth[5:] ~ '.' ~ mth[:4], filled=h.filled, total=h.total, pct=pct) }}">
+            {{ h.filled }}/{{ h.total }}</td>
+        {% else %}
+          <td class="cell muted">—</td>
+        {% endif %}
+      {% endfor %}</tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  <div class="row small muted" style="margin-top:12px;gap:6px">
+    <span>{{ t('dash.legend_low') }}</span>
+    {% for c in ramp %}<span style="width:22px;height:12px;border-radius:3px;background:{{ c }};display:inline-block"></span>{% endfor %}
+    <span>{{ t('dash.legend_high') }}</span>
+  </div>
+</div>
+
+<h2>{{ t('dash.map_title') }}</h2>
+<div id="map"></div>
+<p class="small muted" style="margin-top:8px">{{ t('dash.map_hint') }}</p>
+
+<div class="grid g2" style="margin-top:28px">
+  <div class="card">
+    <h3>{{ t('dash.broadcast_title') }}</h3>
+    <p class="small muted">{{ t('dash.broadcast_hint') }}</p>
+    <form method="post" action="/dashboard/broadcast">
+      <label for="bl">{{ t('dash.col_lang') }}</label>
+      <select id="bl" name="language">
+        {% for r in by_lang %}<option value="{{ r.language }}">{{ t('lang.' ~ r.language) }}</option>{% endfor %}
+      </select>
+      <label>{{ t('dash.audience') }}</label>
+      <div class="checks">
+        <label><input type="radio" name="audience" value="all" checked> {{ t('dash.audience_all') }}</label>
+        <label><input type="radio" name="audience" value="lang"> {{ t('dash.audience_lang') }}</label>
+      </div>
+      <label for="bt">{{ t('dash.broadcast_text') }}</label>
+      <textarea id="bt" name="text" required>{{ t('dash.broadcast_default', lang=t('lang.' ~ by_lang[0].language) if by_lang else '') }}</textarea>
+      <button class="btn block" style="margin-top:12px">{{ t('dash.broadcast_btn') }}</button>
+    </form>
+    {% if broadcasts %}
+      <p class="small" style="margin-top:14px"><b>{{ t('dash.broadcast_history') }}</b></p>
+      {% for b in broadcasts %}<div class="small muted">{{ b.created_at.strftime('%d.%m %H:%M') }} · {{ t('lang.' ~ b.language) }} · {{ t('dash.recipients_n', n=b.recipients) }}</div>{% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="card" id="reports">
+    <h3>{{ t('dash.reports_title') }}</h3>
+    {% for r in reports %}
+      <div class="offer">
+        <div class="small"><b>{{ r.target_name }}</b> · {{ r.overall }}★<br>«{{ r.text or '—' }}»
+          {% if r.reason %}<br><span class="muted">{{ t('dash.reason') }}: {{ r.reason }}</span>{% endif %}</div>
+        <form method="post" action="/reviews/{{ r.id }}/hide"><button class="btn small danger">{{ t('dash.hide') }}</button></form>
+      </div>
+    {% else %}
+      <div class="empty small">{{ t('dash.reports_empty') }}</div>
+    {% endfor %}
+    <h3 style="margin-top:20px">{{ t('dash.region_title') }}</h3>
+    <ul class="small">
+      <li>{{ t('dash.region_1') }}</li>
+      <li>{{ t('dash.region_2') }}</li>
+      <li>{{ t('dash.region_3') }}</li>
+    </ul>
+    <p class="hint">{{ t('dash.region_source') }}</p>
+    <p class="small" style="margin-top:12px"><b>{{ t('dash.revenue') }}:</b> {{ t('dash.revenue_text', deposits=money(fin.deposits), subs=money(fin.subscriptions)) }}</p>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const sites = {{ sites_json | tojson }};
+  const lang = {{ lang | tojson }};
+  const labels = {{ {'total': t('dash.col_total'), 'open': t('dash.col_open')} | tojson }};
+  const map = L.map("map", { scrollWheelZoom: false }).setView([43.9, 52.6], 7);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 12, attribution: "© OpenStreetMap",
+  }).addTo(map);
+  const max = Math.max(1, ...sites.map((s) => s.total));
+  sites.forEach((s) => {
+    const r = 7 + 17 * Math.sqrt(s.total / max);
+    L.circleMarker([s.lat, s.lon], {
+      radius: r, color: "#ffffff", weight: 2, fillColor: "#2a78d6", fillOpacity: s.total ? 0.85 : 0.35,
+    }).addTo(map).bindTooltip(
+      `<b>${s["name_" + lang]}</b><br>${labels.total}: ${s.total} · ${labels.open}: ${s.open}`
+    );
+  });
+</script>
+{% endblock %}

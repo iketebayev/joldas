@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('nav.feed') }}{% endblock %}
+{% block content %}
+<h1>{{ t('feed.title') }}</h1>
+{% if g.level == 'novice' %}
+  <div class="card row between" style="margin:12px 0;border-color:var(--accent);background:var(--accent-soft)">
+    <div><b>🎓 {{ t('feed.novice_title') }}</b><div class="small">{{ t('feed.novice_text') }}</div></div>
+    <a class="btn small" href="/academy">{{ t('nav.academy') }} →</a>
+  </div>
+{% endif %}
+{% if not g.languages %}
+  <div class="flash error">{{ t('feed.no_langs') }} <a href="/profile">{{ t('nav.profile') }} →</a></div>
+{% else %}
+  <p class="muted">{{ t('feed.subtitle') }} {% for c in g.languages %}<span class="badge">{{ t('lang.' ~ c) }}</span> {% endfor %}</p>
+{% endif %}
+
+<div class="grid" style="margin-top:12px">
+{% for r in feed %}
+  <a class="card req" href="/requests/{{ r.id }}" style="color:inherit;text-decoration:none">
+    <div class="row between">
+      <div class="row"><span class="badge">{{ t('lang.' ~ r.language) }}</span>
+        <span class="badge">{{ t('role.' ~ r.author_type) }}</span>
+        {% if r.urgent %}<span class="badge urgent">{{ t('req.urgent_badge') }}</span>{% endif %}
+        {% if r.offered %}<span class="badge st-confirmed">{{ t('feed.offered') }}</span>{% endif %}</div>
+      <div class="price">{{ money(r.price_per_day) }} <span class="small muted">/ {{ t('common.day') }}</span></div>
+    </div>
+    <div><b>{{ m.dates(r) }}</b> · {{ t('req.people_n', n=r.group_size) }}</div>
+    <div class="small muted">{{ m.site_names(sites, r.site_ids, name_of) or t('req.any_sites') }}</div>
+    <div class="small muted">{{ t('req.offers_n', n=r.offers_count) }}</div>
+  </a>
+{% else %}
+  <div class="card empty">{{ t('feed.empty') }}</div>
+{% endfor %}
+</div>
+
+<h2>{{ t('feed.mine') }}</h2>
+<div class="grid">
+{% for a in active %}
+  <a class="card req" href="/requests/{{ a.request_id }}" style="color:inherit;text-decoration:none">
+    <div class="row between"><div class="row">{{ m.status(t, a.status) }}<span class="badge">{{ t('lang.' ~ a.language) }}</span></div>
+      <div class="price">{{ money(a.total) }}</div></div>
+    <div><b>{{ m.dates(a) }}</b> · {{ t('common.days_n', n=a.days) }} × {{ money(a.price_per_day) }}</div>
+  </a>
+{% else %}
+  <div class="card empty">{{ t('feed.mine_empty') }}</div>
+{% endfor %}
+</div>
+
+{% if history %}
+<h2>{{ t('feed.history') }}</h2>
+<div class="grid">
+{% for a in history %}
+  <a class="card req" href="/requests/{{ a.request_id }}" style="color:inherit;text-decoration:none">
+    <div class="row between"><div class="row">{{ m.status(t, a.status) }}<span class="badge">{{ t('lang.' ~ a.language) }}</span></div>
+      <div class="price">{{ money(a.total) }}</div></div>
+    <div><b>{{ m.dates(a) }}</b> · {{ t('common.days_n', n=a.days) }} × {{ money(a.price_per_day) }}</div>
+  </a>
+{% endfor %}
+</div>
+{% if history_total > history | length %}
+  <p class="small muted" style="margin-top:10px">{{ t('feed.history_more', n=history_total - history | length) }} ·
+    <a href="/guides/{{ user.id }}">{{ t('profile.view_public') }} →</a></p>
+{% endif %}
+{% endif %}
+{% endblock %}

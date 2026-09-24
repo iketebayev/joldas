@@ -1,0 +1,33 @@
+{% macro stars(r) -%}
+  {%- set n = (r or 0) | round | int -%}
+  <span class="stars" aria-hidden="true">{% for i in range(5) %}{{ '★' if i < n else '☆' }}{% endfor %}</span>
+{%- endmacro %}
+
+{% macro rating(t, r, count) -%}
+  {% if r %}<span class="rating">{{ '%.1f' | format(r) }}</span> {{ stars(r) }} <span class="muted small">({{ t('common.reviews_n', n=count) }})</span>
+  {% else %}<span class="badge">{{ t('guide.new') }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro level(t, lv) -%}
+  <span class="badge level-{{ lv }}" title="{{ t('level.hint_' ~ lv) }}">{{ t('level.' ~ lv) }}</span>
+{%- endmacro %}
+
+{% macro status(t, s) -%}
+  <span class="badge status st-{{ s }}">{{ t('status.' ~ s) }}</span>
+{%- endmacro %}
+
+{% macro langs(t, codes) -%}
+  {% for c in codes %}<span class="badge">{{ t('lang.' ~ c) }}</span>{% endfor %}
+{%- endmacro %}
+
+{% macro site_names(sites, ids, name_of) -%}
+  {%- set names = [] -%}
+  {%- for s in sites if s.id in ids %}{% set _ = names.append(name_of(s)) %}{% endfor -%}
+  {{ names | join(' · ') }}
+{%- endmacro %}
+
+{% macro dates(r) -%}
+  {{ r.date_from.strftime('%d.%m.%Y') }}{% if r.date_to != r.date_from %} — {{ r.date_to.strftime('%d.%m.%Y') }}{% endif %}
+{%- endmacro %}
+
+{% macro initial(name) -%}{{ (name or '?')[0] | upper }}{%- endmacro %}

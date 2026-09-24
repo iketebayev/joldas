@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav.notifications') }}{% endblock %}
+{% block content %}
+<h1>{{ t('nav.notifications') }}</h1>
+<div class="card">
+  {% for n in rows %}
+    <div class="offer">
+      <div>
+        <div>{% if not n.is_read %}<b>● </b>{% endif %}{{ n.text }}</div>
+        <div class="small muted">{{ n.created_at.strftime('%d.%m %H:%M') }}
+          {% if n.whatsapp == 'sent' %} · WhatsApp ✓{% endif %}</div>
+      </div>
+      {% if n.link %}<a class="btn small ghost" href="{{ n.link }}">{{ t('common.open') }}</a>{% endif %}
+    </div>
+  {% else %}
+    <div class="empty">{{ t('notif.empty') }}</div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}{{ t('billing.title') }}{% endblock %}
+{% block content %}
+<h1>{{ t('billing.title') }}</h1>
+<p class="muted">{{ t('billing.subtitle') }}</p>
+
+<h2>{{ t('billing.for_companies') }}</h2>
+<div class="grid g3">
+  <div class="card">
+    <h3>{{ t('billing.plan_start') }}</h3>
+    <div class="stat">0 ₸</div>
+    <ul class="small"><li>{{ t('billing.start_1') }}</li><li>{{ t('billing.start_2') }}</li></ul>
+    {% if company and company.plan == 'start' %}<span class="badge">{{ t('billing.current') }}</span>{% endif %}
+  </div>
+  <div class="card" style="border-color:var(--accent)">
+    <h3>{{ t('billing.plan_season') }}</h3>
+    <div class="stat">{{ money(season_price) }} <span class="small muted">/ {{ t('billing.month') }}</span></div>
+    <ul class="small"><li>{{ t('billing.season_1') }}</li><li>{{ t('billing.season_2') }}</li><li>{{ t('billing.season_3') }}</li></ul>
+    {% if company and company.plan == 'season' %}
+      <span class="badge st-confirmed">{{ t('billing.current') }}{% if company.plan_until %} · {{ t('billing.until', date=company.plan_until.strftime('%d.%m.%Y')) }}{% endif %}</span>
+    {% elif company %}
+      <form method="post" action="/billing/subscribe"><button class="btn block">{{ t('billing.subscribe') }}</button></form>
+      <p class="hint">{{ t('pay.test_mode') }}</p>
+    {% else %}
+      <a class="btn block" href="/register?role=company">{{ t('index.cta_company') }}</a>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3>{{ t('billing.urgent') }}</h3>
+    <div class="stat">{{ money(urgent_price) }}</div>
+    <p class="small">{{ t('billing.urgent_text') }}</p>
+  </div>
+</div>
+
+<h2>{{ t('billing.for_tourists') }}</h2>
+<div class="card"><p>{{ t('billing.tourist_text', pct=deposit_percent) }}</p>
+  <ul class="small"><li>{{ t('billing.refund_1') }}</li><li>{{ t('billing.refund_2') }}</li><li>{{ t('billing.refund_3') }}</li></ul></div>
+
+<h2>{{ t('billing.for_guides') }}</h2>
+<div class="card"><p>{{ t('billing.guide_text') }}</p></div>
+{% endblock %}

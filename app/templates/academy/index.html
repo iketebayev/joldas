@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ t('ac.title') }}{% endblock %}
+{% block content %}
+<span class="badge">{{ t('ac.eyebrow') }}</span>
+<h1 style="margin-top:12px">{{ t('ac.title') }}</h1>
+<p class="muted" style="max-width:720px">{{ t('ac.lead') }}</p>
+
+<h2>{{ t('ac.steps_title') }}</h2>
+<div class="grid g2">
+  {% for title, text in general.steps %}
+    <div class="card step"><b>{{ loop.index }}</b><div><h3>{{ title }}</h3><p class="small muted" style="margin:0">{{ text }}</p></div></div>
+  {% endfor %}
+</div>
+
+<h2>{{ t('ac.rules_title') }}</h2>
+<div class="card">
+  <ul>{% for r in general.rules %}<li>{{ r }}</li>{% endfor %}</ul>
+  <p class="hint">{{ t('ac.source') }}: <a href="{{ rules_source[1] }}" target="_blank" rel="noopener">{{ rules_source[0] }}</a></p>
+</div>
+
+<h2>{{ t('ac.tips_title') }}</h2>
+<div class="card">
+  <ul>{% for r in general.tips %}<li style="margin-bottom:6px">{{ r }}</li>{% endfor %}</ul>
+  <p class="hint">{{ t('ac.sources') }}:
+    {% for n, u in incident_sources %}<a href="{{ u }}" target="_blank" rel="noopener">{{ n }}</a> · {% endfor %}
+    <a href="{{ fee_source[1] }}" target="_blank" rel="noopener">{{ fee_source[0] }}</a></p>
+</div>
+
+<h2>{{ t('ac.etiquette_title') }}</h2>
+<div class="card"><ul>{% for r in general.etiquette %}<li>{{ r }}</li>{% endfor %}</ul></div>
+
+<h2>{{ t('ac.sites_title') }}</h2>
+<p class="small muted">{{ t('ac.sites_hint') }}</p>
+<div class="grid g3">
+  {% for s, c in cards %}
+  <a class="card" href="/academy/{{ s.slug }}" style="color:inherit;text-decoration:none">
+    <div class="tags" style="margin-bottom:8px">
+      {% if c.unesco %}<span class="badge level-expert">{{ t('ac.unesco') }}</span>{% endif %}
+      {% if c.fee %}<span class="badge urgent">{{ t('ac.paid_entry') }}</span>{% endif %}
+      {% if c.draft %}<span class="badge demo">{{ t('ac.draft') }}</span>{% endif %}
+    </div>
+    <h3>{{ name_of(s) }}</h3>
+    <p class="small muted" style="margin:0">{{ c.tagline }}</p>
+  </a>
+  {% endfor %}
+</div>
+
+<h2>{{ t('ac.phrases_title') }}</h2>
+<p class="small muted">{{ t('ac.phrases_hint') }}</p>
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th>English</th><th>中文</th><th>Pinyin</th><th>{{ t('ac.meaning') }}</th></tr></thead>
+    <tbody>{% for en, zh, py, ru, kk in phrases %}
+      <tr><td><b>{{ en }}</b></td><td>{{ zh }}</td><td class="muted">{{ py }}</td><td>{{ kk if lang == 'kk' else ru }}</td></tr>
+    {% endfor %}</tbody>
+  </table>
+</div>
+
+<h2>{{ t('ac.read_title') }}</h2>
+<div class="card"><ul>{% for n, u in read %}<li><a href="{{ u }}" target="_blank" rel="noopener">{{ n }}</a></li>{% endfor %}</ul></div>
+
+{% if not user %}
+<div class="card" style="margin-top:24px;text-align:center">
+  <h3>{{ t('ac.cta_title') }}</h3>
+  <a class="btn" href="/register?role=guide">{{ t('index.cta_guide') }}</a>
+</div>
+{% endif %}
+{% endblock %}
