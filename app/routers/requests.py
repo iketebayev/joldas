@@ -91,7 +91,7 @@ async def create(request: Request):
             flash(request, "billing.limit_reached", "error")
             return redirect("/pricing")
         region_id = await conn.fetchval("SELECT id FROM regions WHERE code='mangystau'")
-        rid = await orders.create_request(conn, user, {
+        rid, notified = await orders.create_request(conn, user, {
             "region_id": region_id, "date_from": d_from, "date_to": d_to,
             "site_ids": [int(x) for x in form.getlist("site_ids") if str(x).isdigit()],
             "language": language, "group_size": group, "price_per_day": price,
@@ -99,7 +99,10 @@ async def create(request: Request):
             "urgent": user["role"] == "company" and form.get("urgent") == "on",
         })
         await safety.save(conn, rid, safety_data)
-    flash(request, "req.created")
+    if notified:
+        flash(request, "req.created_n", n=notified)
+    else:
+        flash(request, "req.created_none", "error")
     return redirect(f"/requests/{rid}")
 
 

@@ -50,11 +50,12 @@ async def create_request(conn, author, data: dict) -> int:
         data.get("note"), data.get("urgent", False),
     )
     req = await conn.fetchrow("SELECT * FROM requests WHERE id=$1", rid)
-    for g in await matching_guides(conn, req):
+    guides = await matching_guides(conn, req)
+    for g in guides:
         await notify(conn, g["id"], "n.new_request", f"/requests/{rid}",
                      lang_code=req["language"].upper(), date=req["date_from"].strftime("%d.%m"),
                      price=f"{req['price_per_day']:,}".replace(",", " "))
-    return rid
+    return rid, len(guides)
 
 
 async def make_offer(conn, guide, req, price: int, message: str | None) -> None:

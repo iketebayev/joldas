@@ -100,6 +100,25 @@
 | Гид | `guide@demo.kz` |
 | Турист | `tourist@demo.kz` |
 
+Гид видит в ленте только заявки **на своих языках**. Логины всех гидов:
+
+| Гид | Логин | Языки |
+|---|---|---|
+| Айдос Жаксылыков | `guide@demo.kz` | EN, RU, KK |
+| Динара Сейтқалиева | `dinara@demo.kz` | EN, DE, RU |
+| Нурлан Абилов | `nurlan@demo.kz` | EN, RU |
+| Айгерим Утепова | `aigerim@demo.kz` | FR, EN, RU |
+| Ерлан Кенжебаев | `erlan@demo.kz` | RU, KK |
+| Мадина Ермекова | `madina@demo.kz` | EN, TR, RU |
+| Санжар Тулегенов | `sanzhar@demo.kz` | EN, RU |
+| Асель Нурмагамбетова | `asel@demo.kz` | ZH, EN, RU |
+| Бауыржан Сарсенов | `bauyrzhan@demo.kz` | AR, EN |
+| Жанна Калиева | `zhanna@demo.kz` | DE, EN |
+| Тимур Оразов | `timur@demo.kz` | EN, RU |
+| Алия Досова | `aliya@demo.kz` | EN, RU, KK |
+
+На корейском и японском гидов нет — такие заявки попадают в дашборд дефицита.
+
 ## Стек
 
 | Компонент | Зачем |
