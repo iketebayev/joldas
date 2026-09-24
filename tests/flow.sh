@@ -184,4 +184,22 @@ CLOSED=$(q "SELECT r.id FROM requests r JOIN users u ON u.id=r.author_id WHERE r
 ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/timur $B/requests/$CLOSED/route.gpx)" "403" "чужой гид не скачает GPX закрытого тура"
 ok "$(curl -s -o /dev/null -w '%{http_code}' $B/academy/bozjyra.gpx)" "200" "GPX объекта в Академии"
 
+
+echo "20. Въезд в госпарк: расчёт, отдельно от ставки гида"
+D5=$(date -d '+50 days' +%F); D6=$(date -d '+51 days' +%F)
+BZ=$(q "SELECT id FROM sites WHERE slug='bozjyra'"); TZ=$(q "SELECT id FROM sites WHERE slug='tuzbair'"); SH=$(q "SELECT id FROM sites WHERE slug='sherkala'")
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&date_to=$D6&language=en&group_size=4&price_per_day=20000&site_ids=$BZ&site_ids=$TZ"
+PR=$(q "SELECT max(id) FROM requests")
+ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$PR | grep -c '16.868')" "1" "заказчик видит ≈16 868 ₸ за въезд (4 чел. × 2 дн.)"
+post guide /requests/$PR/offer "action=accept" >/dev/null
+ok "$(curl -s -b $D/guide -H 'Cookie: lang=ru' $B/requests/$PR | grep -c 'Вы оплачиваете въезд')" "1" "гид видит, что въезд оплачивает он"
+post tour /offers/$(q "SELECT id FROM offers WHERE request_id=$PR AND guide_id=$AIDOS")/choose >/dev/null
+PA=$(q "SELECT id FROM assignments WHERE request_id=$PR AND status<>'cancelled'")
+ok "$(q "SELECT entry_fee||'/'||total FROM assignments WHERE id=$PA")" "16868/40000" "въезд отдельно от ставки гида"
+post tour /assignments/$PA/pay >/dev/null
+ok "$(q "SELECT amount FROM payments WHERE assignment_id=$PA AND kind='deposit'")" "4000" "депозит 10% только от услуг гида"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/requests/new -d "date_from=$D5&language=en&group_size=4&price_per_day=20000&site_ids=$SH"
+NR=$(q "SELECT max(id) FROM requests")
+ok "$(curl -s -b $D/tour -H 'Cookie: lang=ru' $B/requests/$NR | grep -c 'Кроме ставки гида')" "0" "маршрут вне парка — без платы за въезд"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

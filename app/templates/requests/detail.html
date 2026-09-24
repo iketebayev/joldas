@@ -49,7 +49,12 @@
       {% for a in chosen_addons %}
         <div class="row between"><span>{{ t('addon.' ~ a.kind) }}{% if a.per == 'person' %} × {{ a.qty }}{% endif %}</span><span>{{ money(a.amount) }}</span></div>
       {% endfor %}
-      <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('addon.total') }}</b><b>{{ money(assignment.total) }}</b></div>
+      <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('fee.services_total') }}</b><b>{{ money(assignment.total) }}</b></div>
+      {% if assignment.entry_fee %}
+        <div class="row between" style="margin-top:8px"><span>🎫 {{ t('fee.line') }}</span><span>{{ money(assignment.entry_fee) }}</span></div>
+        <div class="hint" style="margin-top:2px">{{ t('fee.line_hint_guide') if is_assigned_guide else t('fee.line_hint_client') }}</div>
+        <div class="row between" style="border-top:1px solid var(--line);margin-top:6px;padding-top:6px"><b>{{ t('fee.grand_total') }}</b><b>{{ money(assignment.total + assignment.entry_fee) }}</b></div>
+      {% endif %}
     </div>
     <p>{{ m.status(t, assignment.status) }}</p>
 
@@ -92,6 +97,10 @@
     {% if my_offer and my_offer.status == 'pending' %}
       <p class="small">{{ t('offer.yours', price=money(my_offer.price_per_day)) }}</p>
     {% endif %}
+    {% if park_fee %}
+      <div class="park-fee on" style="margin-bottom:12px"><b>🎫 {{ t('fee.title') }}</b>
+        <p class="small" style="margin:6px 0 0">{{ t('fee.guide_duty', total=money(park_fee.total)) }}</p></div>
+    {% endif %}
     <form method="post" action="/requests/{{ req.id }}/offer">
       <label for="message">{{ t('offer.message') }}</label>
       <textarea id="message" name="message" placeholder="{{ t('offer.message_placeholder') }}"></textarea>
@@ -108,6 +117,10 @@
   {% elif is_owner or user.role == 'admin' %}
     <h3>{{ t('offers.title') }}</h3>
     {% if req.status == 'open' %}<p class="small muted">{{ t('offers.hint') }}</p>{% endif %}
+    {% if park_fee and req.status == 'open' %}
+      <div class="park-fee on" style="margin:8px 0"><b>🎫 {{ t('fee.title') }}</b>
+        <p class="small" style="margin:6px 0 0">{{ t('fee.client_note', total=money(park_fee.total)) }}</p></div>
+    {% endif %}
     {% for o in offers %}
       <div class="offer">
         <div class="guide-card">

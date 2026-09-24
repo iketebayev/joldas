@@ -1,5 +1,40 @@
 {% extends "base.html" %}
 {% block title %}{{ t('req.new_title') }}{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const cfg = {{ fee_cfg | tojson }};
+  const park = {{ park_site_ids | tojson }};
+  const tpl = {{ t('fee.calc', total='__T__', people='__P__', days='__D__', pp='__PP__', vehicles='__V__') | tojson }};
+  const veh = {{ {'car': t('fee.v_car', n='__N__'), 'minibus': t('fee.v_minibus'), 'bus': t('fee.v_bus'), 'bus_big': t('fee.v_bus_big')} | tojson }};
+  const money = (v) => Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸";
+  const $ = (id) => document.getElementById(id);
+  function days() {
+    const a = $("date_from").value, b = $("date_to").value || a;
+    if (!a) return 1;
+    return Math.max(1, Math.round((new Date(b) - new Date(a)) / 86400000) + 1);
+  }
+  function update() {
+    const chosen = [...document.querySelectorAll('input[name="site_ids"]:checked')].map((x) => +x.value);
+    const inPark = chosen.some((id) => park.includes(id));
+    const g = Math.max(1, +$("group_size").value || 1), d = days();
+    $("park-fee-calc").hidden = !inPark; $("park-fee-none").hidden = inPark;
+    $("park-fee").classList.toggle("on", inPark);
+    if (!inPark) return;
+    const pp = Math.round(cfg.trail * cfg.mrp * cfg.foreign);
+    let kind = "car", n = Math.ceil(g / cfg.seats);
+    if (g > 12) { kind = g <= 16 ? "minibus" : (g <= 32 ? "bus" : "bus_big"); n = 1; }
+    const transport = Math.round(cfg.vehicle[kind] * cfg.mrp) * n;
+    const total = pp * g * d + transport;
+    $("park-fee-calc").innerHTML = tpl.replace("__T__", "<b>" + money(total) + "</b>").replace("__P__", g)
+      .replace("__D__", d).replace("__PP__", money(pp)).replace("__V__", veh[kind].replace("__N__", n) + " — " + money(transport));
+  }
+  document.querySelectorAll('input[name="site_ids"], #group_size, #date_from, #date_to')
+    .forEach((el) => el.addEventListener("input", update));
+  update();
+})();
+</script>
+{% endblock %}
 {% block content %}
 <div class="form-narrow" style="max-width:640px">
 <h1>{{ t('req.new_title') }}</h1>
@@ -20,6 +55,13 @@
     <div><label for="group_size">{{ t('req.group') }}</label><input id="group_size" name="group_size" type="number" min="1" value="2" required></div>
     <div><label for="price_per_day">{{ t('req.price') }}, ₸</label><input id="price_per_day" name="price_per_day" type="number" min="1000" step="1000" required>
       <div class="hint">{{ t('req.price_hint') }}</div></div>
+  </div>
+  <div class="park-fee" id="park-fee">
+    <b>🎫 {{ t('fee.title') }}</b>
+    <p class="small" style="margin:6px 0 0">{{ t('fee.rule') }}</p>
+    <p class="small" id="park-fee-calc" style="margin:6px 0 0" hidden></p>
+    <p class="small muted" id="park-fee-none" style="margin:6px 0 0">{{ t('fee.if_park') }}</p>
+    <p class="hint" style="margin:6px 0 0">{{ t('fee.estimate') }}</p>
   </div>
   <label for="note">{{ t('req.note') }}</label>
   <textarea id="note" name="note" placeholder="{{ t('req.note_placeholder') }}"></textarea>

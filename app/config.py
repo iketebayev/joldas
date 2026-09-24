@@ -41,3 +41,12 @@ SAFETY_RETENTION_DAYS = 30
 
 # Допуслуги гидов
 ADDON_KINDS = ("drone", "photo", "reel", "camping", "starlink", "catering")
+
+# Въезд в госпарк «Кызылсай» с 1.09.2026 (inaktau.kz). Оплату через Halyk проводит гид,
+# турист возмещает её отдельно от дневной ставки — без комиссии площадки.
+MRP = 4325                      # 1 МРП в 2026 году, ₸
+PARK_SITES = ("bozjyra", "tuzbair", "kyzylkup", "bokty")
+FEE_TRAIL_MRP = 0.2             # туристская тропа, с человека в сутки
+FEE_FOREIGN_MULT = 2            # иностранцам — двойной тариф
+FEE_VEHICLE_MRP = {"car": 0.7, "minibus": 2.7, "bus": 5.0, "bus_big": 7.0}
+SEATS_PER_CAR = 4

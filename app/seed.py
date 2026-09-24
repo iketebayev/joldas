@@ -11,7 +11,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from .auth import hash_password
 from .config import DEMO_PASSWORD
 from .db import close_pool, init_pool, pool
-from .services import rating
+from .services import fees, rating
 
 # Координаты проверены по OpenStreetMap (Nominatim), сентябрь 2026.
 SITES = [
@@ -326,6 +326,14 @@ async def seed(reset: bool) -> None:
             "INSERT INTO payments (kind, assignment_id, amount, status) VALUES ('deposit',$1,$2,'paid_test')",
             aid, round(total * 0.1),
         )
+        # Въезд в госпарк у заказов, чей маршрут заходит в «Кызылсай».
+        for a in await conn.fetch(
+            """SELECT a.id, a.days, r.group_size, array_agg(s.slug) AS slugs
+               FROM assignments a JOIN requests r ON r.id=a.request_id JOIN sites s ON s.id = ANY(r.site_ids)
+               GROUP BY a.id, a.days, r.group_size"""):
+            fee = fees.compute(a["slugs"], a["group_size"], a["days"])
+            if fee:
+                await conn.execute("UPDATE assignments SET entry_fee=$2 WHERE id=$1", a["id"], fee["total"])
         await rating.recompute_all(conn)
 
         levels = await conn.fetch(

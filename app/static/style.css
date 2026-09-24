@@ -189,3 +189,7 @@ footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--m
 .route-warn { background: #d03b3b; color: #fff; border: 2px solid #fff; border-radius: 11px; font: 700 12px/18px sans-serif;
   text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 @media (max-width: 760px) { #route-map { height: 280px; } }
+
+/* въезд в госпарк */
+.park-fee { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--bg); border: 1px dashed var(--line); }
+.park-fee.on { background: #fdf1d6; border: 1px solid #f3d99a; }

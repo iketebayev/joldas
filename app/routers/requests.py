@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import GUIDE_LANGS
+from ..config import GUIDE_LANGS, PARK_SITES
 from ..db import pool
 from .. import academy
-from ..services import orders, route, safety
+from ..services import fees, orders, route, safety
 from ..services.payments import deposit_for
 from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
@@ -59,7 +59,9 @@ async def new_form(request: Request):
     if user["role"] == "company" and not await orders.company_can_post(pool(), user["id"]):
         flash(request, "billing.limit_reached", "error")
         return redirect("/pricing")
-    return await render(request, "requests/new.html", sites=await all_sites())
+    sites = await all_sites()
+    return await render(request, "requests/new.html", sites=sites, fee_cfg=fees.client_config(),
+                        park_site_ids=[s["id"] for s in sites if s["slug"] in PARK_SITES])
 
 
 @router.post("/requests/new")
@@ -190,6 +192,8 @@ async def detail(request: Request, rid: int):
     route_sites = route.order([dict(x) for x in await all_sites() if x["id"] in req["site_ids"]])
     slugs = {x["slug"] for x in route_sites}
     incidents = [{**i, "text": i[lang]} for i in academy.INCIDENTS if i["site"] in slugs]
+    tour_days = (req["date_to"] - req["date_from"]).days + 1
+    park_fee = fees.compute(slugs, req["group_size"], tour_days)
 
     # Анкета безопасности: страны видны всем, кто видит заявку; здоровье и ICE —
     # только автору и назначенному гиду после подтверждения. Акимату — не показываем.
@@ -204,7 +208,7 @@ async def detail(request: Request, rid: int):
         my_offer=my_offer, my_review=my_review, deposit=deposit, sites=all_sites_rows,
         sf=sf, show_health=show_health, brief=brief,
         offer_addons=offer_addons, chosen_addons=chosen_addons,
-        route_sites=route_sites, incidents=incidents, aktau=route.AKTAU,
+        route_sites=route_sites, incidents=incidents, aktau=route.AKTAU, park_fee=park_fee,
     )
 
 

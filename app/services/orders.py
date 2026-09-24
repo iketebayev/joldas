@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from fastapi import HTTPException
 
 from ..config import CANCEL_REFUND_HOURS, START_PLAN_MONTHLY_REQUESTS
-from . import payments, rating
+from . import fees, payments, rating
 from .notify import notify
 
 AQTAU = timezone(timedelta(hours=5))
@@ -105,13 +105,16 @@ async def choose_offer(conn, owner, offer_id: int, addon_ids: list[int] | None =
             qty = offer["group_size"] if a["per"] == "person" else 1
             addons.append((a, qty, a["price"] * qty))
     total = offer["price_per_day"] * days + sum(amount for _, _, amount in addons)
+    slugs = [r["slug"] for r in await conn.fetch(
+        "SELECT s.slug FROM sites s JOIN requests r ON s.id = ANY(r.site_ids) WHERE r.id=$1", offer["request_id"])]
+    fee = fees.compute(slugs, offer["group_size"], days)
     status = "awaiting_payment" if offer["author_type"] == "tourist" else "confirmed"
     aid = await conn.fetchval(
         """INSERT INTO assignments (request_id, offer_id, guide_id, client_id,
-               price_per_day, days, total, status)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id""",
+               price_per_day, days, total, status, entry_fee)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id""",
         offer["request_id"], offer_id, offer["guide_id"], owner["id"],
-        offer["price_per_day"], days, total, status,
+        offer["price_per_day"], days, total, status, fee["total"] if fee else 0,
     )
     for a, qty, amount in addons:
         await conn.execute(

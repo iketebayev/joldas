@@ -211,3 +211,6 @@ CREATE TABLE IF NOT EXISTS assignment_addons (
     amount        INT  NOT NULL,
     PRIMARY KEY (assignment_id, kind)
 );
+
+-- Въезд в госпарк: сумма фиксируется при выборе гида; платит гид, возмещает турист отдельно.
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS entry_fee INT NOT NULL DEFAULT 0;
