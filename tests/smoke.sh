@@ -8,6 +8,8 @@ check() { # jar lang path expect
   code=$(curl -s -o $T/page.html -w '%{http_code}' -b "$1" -H "Cookie: lang=$2" "$B$3")
   if [ "$code" != "$4" ]; then echo "FAIL $2 $3 -> $code (ожидали $4)"; fail=1; fi
   if grep -q "Traceback\|UndefinedError\|jinja2" $T/page.html; then echo "TEMPLATE ERROR $3"; fail=1; fi
+  # на сайте не должно быть служебных пометок (демо-логины @demo.kz — не в счёт)
+  if sed 's/[a-z]*@demo\.kz//g' $T/page.html | grep -qiE "демо|пилот|\bMVP\b|тестов|test mode|сынақ"; then echo "ПОМЕТКА на странице $2 $3"; fail=1; fi
 }
 login() { rm -f "$1"; curl -s -o /dev/null -c "$1" -b "$1" -X POST "$B/login" -d "login=$2&password=${DEMO_PASSWORD:-demo1234}&next=/requests"; }
 D=$T

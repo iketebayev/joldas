@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% import "macros.html" as m %}
 {% block title %}{{ t('req.detail_title', id=req.id) }}{% endblock %}
+{% block head %}{% if route_sites %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">{% endif %}
+{% endblock %}
 {% block content %}
 <a href="/requests" class="small">← {{ t('common.back') }}</a>
 <div class="row between" style="margin-top:8px">
   <h1>{{ t('req.detail_title', id=req.id) }}</h1>
-  <div class="row">{{ m.status(t, req.status) }}{% if req.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+  <div class="row">{{ m.status(t, req.status) }}</div>
 </div>
 
 <div class="grid g2">
@@ -63,7 +66,6 @@
         <b>{{ t('pay.title') }}</b>
         <p class="small">{{ t('pay.text', pct=deposit_percent, amount=money(deposit), rest=money(assignment.total - deposit)) }}</p>
         <form method="post" action="/assignments/{{ assignment.id }}/pay"><button class="btn block">{{ t('pay.btn', amount=money(deposit)) }}</button></form>
-        <p class="hint">{{ t('pay.test_mode') }}</p>
       </div>
     {% endif %}
 
@@ -147,6 +149,29 @@
   {% endif %}
 </div>
 </div>
+{% if route_sites %}
+<div class="card" style="margin-top:16px">
+  <div class="row between"><h2 style="margin:0">🗺 {{ t('route.title') }}</h2>
+    <a class="btn small" href="/requests/{{ req.id }}/route.gpx">⬇ {{ t('route.gpx') }}</a></div>
+  <div class="grid g2" style="margin-top:14px;align-items:start">
+    <div>
+      <p class="muted small" style="margin:0 0 6px">● {{ t('route.start') }}</p>
+      <ol class="route-list">
+        {% for st in route_sites %}<li><a href="/academy/{{ st.slug }}">{{ st['name_' ~ lang] }}</a></li>{% endfor %}
+      </ol>
+      <p class="muted small" style="margin:6px 0 0">● {{ t('route.finish') }}</p>
+      {% if incidents %}
+        <div class="route-inc">
+          <b>⚠ {{ t('route.incidents') }}</b>
+          {% for i in incidents %}<p class="small" style="margin:8px 0 0"><b>{{ i.date }}</b> · {{ i.text }} <a href="{{ i.source }}" target="_blank" rel="noopener">{{ t('ac.source') }}</a></p>{% endfor %}
+        </div>
+      {% endif %}
+      <p class="hint">{{ t('route.hint') }}</p>
+    </div>
+    <div id="route-map"></div>
+  </div>
+</div>
+{% endif %}
 {% if brief and (brief.risks or brief.diet or brief.sites or show_health) %}
 <div class="card safety-brief" style="margin-top:16px">
   <div class="row between"><h2 style="margin:0">🛡 {{ t('safety.brief_title') }}</h2>
@@ -174,3 +199,29 @@
 </div>
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if route_sites %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const pts = {{ route_sites | tojson }};
+  const aktau = {{ aktau | tojson }};
+  const inc = {{ incidents | tojson }};
+  const lang = {{ lang | tojson }};
+  const labels = {{ {'start': t('route.start'), 'inc': t('route.incident')} | tojson }};
+  const map = L.map("route-map", { scrollWheelZoom: false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 13, attribution: "© OpenStreetMap" }).addTo(map);
+  const line = [[aktau.lat, aktau.lon], ...pts.map(p => [p.lat, p.lon]), [aktau.lat, aktau.lon]];
+  L.polyline(line, { color: "#2a78d6", weight: 2, dashArray: "6 6" }).addTo(map);
+  L.circleMarker([aktau.lat, aktau.lon], { radius: 7, color: "#fff", weight: 2, fillColor: "#1d1a16", fillOpacity: 1 })
+    .addTo(map).bindTooltip(labels.start);
+  pts.forEach((p, i) => L.marker([p.lat, p.lon], { icon: L.divIcon({ className: "route-pin", html: String(i + 1), iconSize: [26, 26] }) })
+    .addTo(map).bindTooltip(`${i + 1}. ${p["name_" + lang]}`));
+  // Один значок ⚠ на объект, справа сверху от метки; в подсказке — все его инциденты.
+  pts.forEach((p) => {
+    const list = inc.filter((x) => x.site === p.slug); if (!list.length) return;
+    L.marker([p.lat, p.lon], { zIndexOffset: 500, icon: L.divIcon({ className: "route-warn",
+      html: "⚠" + (list.length > 1 ? list.length : ""), iconSize: [30, 22], iconAnchor: [-6, 30] }) })
+      .addTo(map).bindTooltip(list.map((x) => `<b>${x.date}</b> ${x.text}`).join("<br>"), { maxWidth: 280 });
+  });
+  map.fitBounds(L.latLngBounds(line).pad(0.15));
+</script>
+{% endif %}{% endblock %}

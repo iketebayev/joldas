@@ -175,4 +175,13 @@ async def m():
 asyncio.run(m())" >/dev/null
 ok "$(q "SELECT count(*) FROM request_safety WHERE request_id=$SR")" "0" "анкета удалена"
 
+
+echo "19. Маршрут тура: GPX и доступ"
+GR=$(q "SELECT r.id FROM requests r WHERE array_length(r.site_ids,1) >= 2 AND r.status='open' LIMIT 1")
+GPX=$(curl -s -b $D/guide $B/requests/$GR/route.gpx)
+ok "$(echo "$GPX" | python3 -c "import sys,xml.dom.minidom as m; d=m.parseString(sys.stdin.read()); print(len(d.getElementsByTagName('rtept')))")" "$(( $(q "SELECT array_length(site_ids,1) FROM requests WHERE id=$GR") + 2 ))" "GPX валиден: Актау → объекты → Актау"
+CLOSED=$(q "SELECT r.id FROM requests r JOIN users u ON u.id=r.author_id WHERE r.status='done' AND NOT EXISTS (SELECT 1 FROM offers o WHERE o.request_id=r.id AND o.guide_id=$TIMUR) LIMIT 1")
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/timur $B/requests/$CLOSED/route.gpx)" "403" "чужой гид не скачает GPX закрытого тура"
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/academy/bozjyra.gpx)" "200" "GPX объекта в Академии"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

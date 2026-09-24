@@ -1,4 +1,4 @@
-"""Наполнение: реальные объекты Мангистау + явно помеченные демо-данные.
+"""Наполнение: реальные объекты Мангистау + сгенерированные данные для демонстрации.
 
     python -m app.seed          — заполнить, если база пустая
     python -m app.seed --reset  — очистить всё и заполнить заново
@@ -72,11 +72,11 @@ GUIDES = [
 ]
 
 COMPANIES = [
-    ("Демо: Caspian Trails", "company@demo.kz"),
-    ("Демо: Mangystau Explorer", None),
-    ("Демо: Steppe Travel", None),
+    ("Caspian Trails", "company@demo.kz"),
+    ("Mangystau Explorer", None),
+    ("Steppe Travel", None),
 ]
-TOURISTS = [("Anna Müller (демо)", "tourist@demo.kz"), ("John Smith (демо)", None), ("Li Wei (демо)", None)]
+TOURISTS = [("Anna Müller", "tourist@demo.kz"), ("John Smith", None), ("Li Wei", None)]
 
 REVIEW_TEXT = {
     5: ["Лучший день поездки. Всё чётко по времени, рассказывал интересно.",
@@ -138,7 +138,7 @@ async def seed(reset: bool) -> None:
                 role, name, email, f"+7000000{n:04d}", pw, lang,
             )
 
-        await user("admin", "Управление туризма (демо)", "admin@demo.kz", 1)
+        await user("admin", "Управление туризма Мангистауской области", "admin@demo.kz", 1)
         guides = []
         for i, (name, email, langs, specs, sites, rate, years, bio, stats) in enumerate(GUIDES):
             uid = await user("guide", name, email, 100 + i)
@@ -155,7 +155,7 @@ async def seed(reset: bool) -> None:
             await conn.execute(
                 """INSERT INTO companies (user_id, region_id, name, plan, plan_until)
                    VALUES ($1,$2,$3,'season',$4)""",
-                uid, region, name.replace("Демо: ", ""), date.today() + timedelta(days=30),
+                uid, region, name, date.today() + timedelta(days=30),
             )
             companies.append(uid)
         tourists = [await user("tourist", n, e, 300 + i, "en") for i, (n, e) in enumerate(TOURISTS)]
@@ -309,7 +309,7 @@ async def seed(reset: bool) -> None:
                    ice_name, ice_phone, note, consent_at)
                VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,now())""",
             rid, ["DE", "AT"], ["vegetarian", "nuts"], ["anaphylaxis", "motion_sickness"],
-            "Klaus Müller (демо)", "+491700000000", "Одна туристка боится высоты — держитесь подальше от края обрывов.",
+            "Klaus Müller", "+491700000000", "Одна туристка боится высоты — держитесь подальше от края обрывов.",
         )
         aid = await assign(rid, aidos[0], anna, 25000, 2, "confirmed")
         extras = []

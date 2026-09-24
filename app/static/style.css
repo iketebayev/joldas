@@ -178,3 +178,14 @@ footer { border-top: 1px solid var(--line); padding: 22px 0 40px; color: var(--m
 
 .badge.wrap { white-space: normal; line-height: 1.35; }
 .safety-box { min-width: 0; max-width: 100%; }
+
+/* маршрут тура */
+#route-map { height: 360px; border-radius: 12px; border: 1px solid var(--line); }
+.route-list { margin: 0; padding-left: 22px; }
+.route-list li { margin-bottom: 6px; }
+.route-inc { background: #fbeaea; border: 1px solid #f0caca; border-radius: 12px; padding: 12px 14px; margin-top: 14px; }
+.route-pin { background: #2a78d6; color: #fff; border: 2px solid #fff; border-radius: 50%; font: 700 13px/22px Inter, sans-serif;
+  text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.route-warn { background: #d03b3b; color: #fff; border: 2px solid #fff; border-radius: 11px; font: 700 12px/18px sans-serif;
+  text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+@media (max-width: 760px) { #route-map { height: 280px; } }

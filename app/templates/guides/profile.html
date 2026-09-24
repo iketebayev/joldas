@@ -7,7 +7,7 @@
   <div class="guide-card">
     <div class="avatar big">{{ m.initial(g.name) }}</div>
     <div class="body">
-      <div class="row between"><h1>{{ g.name }}</h1>{% if g.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+      <div class="row between"><h1>{{ g.name }}</h1></div>
       <div>{{ m.rating(t, g.rating, g.reviews_count) }}</div>
       <div class="tags" style="margin-top:10px">{{ m.level(t, g.level) }}
         <span class="badge">{{ t('guides.done_n', n=g.completed_count) }}</span></div>

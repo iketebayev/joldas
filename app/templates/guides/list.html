@@ -37,7 +37,7 @@
   <a class="card guide-card" href="/guides/{{ g.id }}" style="color:inherit;text-decoration:none">
     <div class="avatar">{{ m.initial(g.name) }}</div>
     <div class="body">
-      <div class="row between"><h3>{{ g.name }}</h3>{% if g.is_demo %}<span class="badge demo">{{ t('common.demo') }}</span>{% endif %}</div>
+      <div class="row between"><h3>{{ g.name }}</h3></div>
       <div class="small">{{ m.rating(t, g.rating, g.reviews_count) }}</div>
       <div class="tags" style="margin-top:8px">{{ m.level(t, g.level) }}{{ m.langs(t, g.languages) }}</div>
       <div class="small muted" style="margin-top:8px">

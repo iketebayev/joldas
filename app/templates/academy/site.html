@@ -17,7 +17,8 @@
   <div class="card">
     <h3>🚙 {{ t('ac.how') }}</h3><ul>{% for x in c.how %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul>
     <p class="small muted">{{ t('ac.coords') }}: {{ '%.4f' | format(s.lat) }}, {{ '%.4f' | format(s.lon) }} ·
-      <a href="https://www.openstreetmap.org/?mlat={{ s.lat }}&mlon={{ s.lon }}#map=11/{{ s.lat }}/{{ s.lon }}" target="_blank" rel="noopener">{{ t('ac.open_map') }}</a></p>
+      <a href="https://www.openstreetmap.org/?mlat={{ s.lat }}&mlon={{ s.lon }}#map=11/{{ s.lat }}/{{ s.lon }}" target="_blank" rel="noopener">{{ t('ac.open_map') }}</a> ·
+      <a href="/academy/{{ s.slug }}.gpx">⬇ GPX</a></p>
   </div>
   {% if c.tips %}
   <div class="card"><h3>💡 {{ t('ac.tips') }}</h3><ul>{% for x in c.tips %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul>
@@ -27,6 +28,12 @@
   <div class="card" style="border-color:#f0caca"><h3>⚠️ {{ t('ac.safety') }}</h3><ul>{% for x in c.safety %}<li style="margin-bottom:6px">{{ x }}</li>{% endfor %}</ul></div>
   {% endif %}
 </div>
+
+{% if incidents %}
+<div class="card route-inc" style="margin-top:16px"><h3>⚠ {{ t('route.incidents_site') }}</h3>
+  {% for i in incidents %}<p class="small" style="margin:8px 0 0"><b>{{ i.date }}</b> · {{ i.text }} <a href="{{ i.source }}" target="_blank" rel="noopener">{{ t('ac.source') }}</a></p>{% endfor %}
+</div>
+{% endif %}
 
 {% if c.terms %}
 <h2>{{ t('ac.terms') }}</h2>

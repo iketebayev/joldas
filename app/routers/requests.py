@@ -1,11 +1,13 @@
 from datetime import date
 
 from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import Response
 
 from ..auth import require_user
 from ..config import GUIDE_LANGS
 from ..db import pool
-from ..services import orders, safety
+from .. import academy
+from ..services import orders, route, safety
 from ..services.payments import deposit_for
 from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
@@ -180,6 +182,12 @@ async def detail(request: Request, rid: int):
             "SELECT * FROM assignment_addons WHERE assignment_id=$1 ORDER BY amount DESC", assignment["id"]
         )
 
+    # Маршрут: объекты в порядке объезда из Актау и подтверждённые инциденты на них.
+    lang = lang_of(request)
+    route_sites = route.order([dict(x) for x in await all_sites() if x["id"] in req["site_ids"]])
+    slugs = {x["slug"] for x in route_sites}
+    incidents = [{**i, "text": i[lang]} for i in academy.INCIDENTS if i["site"] in slugs]
+
     # Анкета безопасности: страны видны всем, кто видит заявку; здоровье и ICE —
     # только автору и назначенному гиду после подтверждения. Акимату — не показываем.
     sf = await db.fetchrow("SELECT * FROM request_safety WHERE request_id=$1", rid)
@@ -193,6 +201,7 @@ async def detail(request: Request, rid: int):
         my_offer=my_offer, my_review=my_review, deposit=deposit, sites=all_sites_rows,
         sf=sf, show_health=show_health, brief=brief,
         offer_addons=offer_addons, chosen_addons=chosen_addons,
+        route_sites=route_sites, incidents=incidents, aktau=route.AKTAU,
     )
 
 
@@ -285,3 +294,22 @@ async def cancel_request(request: Request, rid: int):
         await conn.execute("UPDATE offers SET status='rejected' WHERE request_id=$1 AND status='pending'", rid)
     flash(request, "req.cancelled")
     return redirect(f"/requests/{rid}")
+
+
+@router.get("/requests/{rid}/route.gpx")
+async def route_gpx(request: Request, rid: int):
+    user = await require_user(request)
+    db = pool()
+    req = await db.fetchrow("SELECT * FROM requests WHERE id=$1", rid)
+    if not req:
+        raise HTTPException(404)
+    allowed = req["author_id"] == user["id"] or user["role"] == "admin" or (
+        user["role"] == "guide" and (
+            req["status"] == "open"
+            or await db.fetchval("SELECT 1 FROM offers WHERE request_id=$1 AND guide_id=$2", rid, user["id"])))
+    if not allowed:
+        raise HTTPException(403)
+    sites = route.order([dict(x) for x in await all_sites() if x["id"] in req["site_ids"]])
+    body = route.gpx(f"Tour #{rid}", sites, lang_of(request))
+    return Response(body, media_type="application/gpx+xml",
+                    headers={"Content-Disposition": f'attachment; filename="tour-{rid}.gpx"'})

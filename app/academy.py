@@ -29,7 +29,7 @@ GENERAL = {
   "Заправьтесь и купите воду в Актау или Жанаозене: дальше магазинов и заправок почти нет.",
   "Связь на Устюрте нестабильна — заранее скачайте офлайн-карты и сообщите кому-то маршрут и время возвращения.",
   "Не заезжайте на соры (солончаки): под сухой коркой — топь. 31 мая 2026 семья туристов из Великобритании больше суток провела в солончаке у Тузбайыра.",
-  "После дождя грунтовки из глины становятся непроходимыми: в феврале и апреле 2026 автобусы с туристами застревали в грязи у Бозжыры.",
+  "После дождя грунтовки из глины становятся непроходимыми: в феврале 2026 у Бозжыры ночью застряла машина с 6 туристами, а 27 апреля — два туристических автобуса, около 50 человек.",
   "С 1 сентября 2026 въезд на Бозжыру, Тузбайыр, Кызылкуп и Бокты платный: 0,7 МРП (3 028 ₸) за легковую машину, иностранцам — вдвое дороже, оплата через приложение Halyk. У иностранцев Halyk обычно нет — оплатите заранее сами.",
   "Солнцезащитные очки обязательны: белые скалы и соль отражают яркий свет даже весной.",
  ],
@@ -57,7 +57,7 @@ GENERAL = {
   "Refuel and buy water in Aktau or Zhanaozen — there are almost no shops or fuel stations further on.",
   "Mobile signal on the Ustyurt is unreliable — download offline maps and tell someone your route and return time.",
   "Never drive onto a sor (salt flat): under the dry crust there is a bog. On 31 May 2026 a family from the UK spent over a day stuck in a salt flat near Tuzbair.",
-  "After rain, clay dirt roads become impassable: in February and April 2026 buses with tourists got stuck in mud near Bozzhyra.",
+  "After rain, clay dirt roads become impassable: in February 2026 a car with 6 tourists got stuck overnight near Bozzhyra, and on 27 April two tour buses with about 50 people.",
   "Since 1 September 2026 entry to Bozzhyra, Tuzbair, Kyzylkup and Bokty is paid: 0.7 MCI (3,028 ₸) per car, double for foreigners, paid via the Halyk app. Foreigners rarely have Halyk — pay in advance yourself.",
   "Sunglasses are a must: white cliffs and salt reflect bright light even in spring.",
  ],
@@ -85,7 +85,7 @@ GENERAL = {
   "Жанармай мен суды Ақтауда немесе Жаңаөзенде алыңыз: әрі қарай дүкен мен жанармай бекеті жоқтың қасы.",
   "Үстіртте байланыс тұрақсыз — офлайн карталарды алдын ала жүктеп, маршрут пен оралу уақытын біреуге айтыңыз.",
   "Сорларға кірмеңіз: құрғақ қыртыстың астында батпақ бар. 2026 жылғы 31 мамырда Ұлыбританиядан келген турист отбасы Тұзбайыр маңындағы сорда бір тәуліктен астам қалып қойды.",
-  "Жаңбырдан кейін саз топырақты жолдар өтпейтін болады: 2026 жылғы ақпан мен сәуірде туристер мінген автобустар Бозжыра маңында балшыққа батты.",
+  "Жаңбырдан кейін саз топырақты жолдар өтпейтін болады: 2026 жылғы ақпанда Бозжыра маңында 6 турист мінген көлік түнде балшыққа батып қалды, ал 27 сәуірде шамамен 50 адам мінген екі туристік автобус батты.",
   "2026 жылғы 1 қыркүйектен Бозжыра, Тұзбайыр, Қызылқұп және Боктыға кіру ақылы: жеңіл көлікке 0,7 АЕК (3 028 ₸), шетелдіктерге екі есе қымбат, Halyk қосымшасы арқылы төленеді. Шетелдіктерде Halyk әдетте болмайды — алдын ала өзіңіз төлеңіз.",
   "Күннен қорғайтын көзілдірік міндетті: ақ жартастар мен тұз көктемде де жарықты қатты шағылыстырады.",
  ],
@@ -102,7 +102,7 @@ RULES_SOURCE = ("zakon.kz — правила для гидов, 22.07.2026",
 INCIDENT_SOURCES = [
     ("zakon.kz — британские туристы в степи, 31.05.2026",
      "https://www.zakon.kz/proisshestviia/6519771-britanskie-turisty-okazalis-v-lovushke-v-stepi-mangistau.html"),
-    ("inform.kz — автобусы в грязи у Бозжыры",
+    ("inform.kz — два автобуса в грязи у Бозжыры, 27.04.2026",
      "https://www.inform.kz/ru/spasateli-vitashili-dva-avtobusa-s-turistami-iz-gryazi-u-bozzhiri-32d98d"),
 ]
 READ_GENERAL = [
@@ -154,7 +154,7 @@ SITES = {
          "Сезон — весна и осень: в это время здесь десятки туристов в день, многие остаются с ночёвкой."],
         ["Рассвет и закат над «клыками» — главные кадры тура: планируйте выезд так, чтобы успеть к ним.",
          "Въезд платный с 1 сентября 2026 — оплатите заранее."],
-        ["После дождя в долину не спускайтесь: глинистые дороги раскисают — в 2026 году здесь дважды застревали автобусы."]),
+        ["После дождя в долину не спускайтесь: глинистые дороги раскисают — в 2026 году здесь застревали и легковая машина, и два туристических автобуса."]),
   en=_t("A chain of buttes on a canyon floor below the western escarpment of the Ustyurt Plateau — the signature view of Mangystau.",
         ["Two buttes at the valley entrance, the “fangs”, rise about 200 metres.",
          "The Ustyurt is a desert plateau of about 200,000 km² across Kazakhstan, Turkmenistan and Uzbekistan. The name comes from Turkic üst, “the upper side”.",
@@ -164,7 +164,7 @@ SITES = {
          "Season: spring and autumn, when dozens of tourists come daily and many stay overnight."],
         ["Sunrise and sunset over the “fangs” are the key shots of the tour — time your departure for them.",
          "Entry is paid since 1 September 2026 — pay in advance."],
-        ["Do not descend into the valley after rain: clay roads turn to mud — buses got stuck here twice in 2026."]),
+        ["Do not descend into the valley after rain: clay roads turn to mud — in 2026 both a car and two tour buses got stuck here."]),
   kk=_t("Үстірт үстіртінің батыс шыңы түбіндегі шатқалдағы қалдық таулар тізбегі — Маңғыстаудың басты көрінісі.",
         ["Алқапқа кіре берісте биіктігі шамамен 200 метр болатын екі қалдық тау — «азу тістер» тұр.",
          "Үстірт — Қазақстан, Түрікменстан және Өзбекстан аумағындағы шамамен 200 мың км² шөлді үстірт. Атауы түркінің üst — «жоғарғы жақ» сөзінен.",
@@ -174,7 +174,7 @@ SITES = {
          "Маусым — көктем мен күз: бұл кезде күніне ондаған турист келіп, көбі түнеп қалады."],
         ["«Азу тістердің» үстіндегі таң мен күн батуы — турдың басты кадрлары: жолға соған үлгеретіндей шығыңыз.",
          "2026 жылғы 1 қыркүйектен кіру ақылы — алдын ала төлеңіз."],
-        ["Жаңбырдан кейін алқапқа түспеңіз: саз жолдар батпаққа айналады — 2026 жылы мұнда автобустар екі рет батып қалды."]),
+        ["Жаңбырдан кейін алқапқа түспеңіз: саз жолдар батпаққа айналады — 2026 жылы мұнда жеңіл көлік те, екі туристік автобус та батып қалды."]),
 ),
 "tuzbair": _site(
   fee=True,
@@ -690,3 +690,23 @@ FAUNA = {
          "Жеке дәрілер мен EpiPen — туристте: қауіпсіздік сауалнамасы арқылы алдын ала сұраңыз"],
 },
 }
+
+
+# Подтверждённые инциденты 2026 года — слой на карте маршрута.
+INCIDENTS = [
+    {"site": "tuzbair", "date": "31.05.2026",
+     "ru": "Машина с семьёй туристов из Великобритании (двое взрослых и ребёнок) застряла в солончаке — спасатели вытаскивали её больше суток.",
+     "en": "A car with a UK tourist family (two adults and a child) got stuck in the salt flat — rescuers worked for over a day to pull it out.",
+     "kk": "Ұлыбританиядан келген турист отбасы (екі ересек және бала) мінген көлік сорға батып қалды — құтқарушылар оны бір тәуліктен астам шығарды.",
+     "source": "https://www.zakon.kz/proisshestviia/6519771-britanskie-turisty-okazalis-v-lovushke-v-stepi-mangistau.html"},
+    {"site": "bozjyra", "date": "02.2026",
+     "ru": "Ночью в урочище в грязи застряла машина с 6 туристами (110 км от Жанаозена) — отбуксировали спасатели.",
+     "en": "At night a car with 6 tourists got stuck in mud in the valley (110 km from Zhanaozen) — towed out by rescuers.",
+     "kk": "Түнде шатқалда 6 турист мінген көлік балшыққа батты (Жаңаөзеннен 110 км) — құтқарушылар сүйреп шығарды.",
+     "source": "https://inbusiness.kz/ru/last/turisty-zastryali-v-gryazi-v-gorah-mangistau"},
+    {"site": "bozjyra", "date": "27.04.2026",
+     "ru": "Два туристических автобуса (около 50 человек) застряли в грязи на полевой дороге — отбуксировали спасатели.",
+     "en": "Two tour buses (about 50 people) got stuck in mud on a dirt road — towed out by rescuers.",
+     "kk": "Екі туристік автобус (шамамен 50 адам) далалық жолда балшыққа батты — құтқарушылар сүйреп шығарды.",
+     "source": "https://www.inform.kz/ru/spasateli-vitashili-dva-avtobusa-s-turistami-iz-gryazi-u-bozzhiri-32d98d"},
+]
