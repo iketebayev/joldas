@@ -28,6 +28,24 @@
   <textarea id="bio" name="bio" placeholder="{{ t('profile.bio_placeholder') }}">{{ g.bio or '' }}</textarea>
   <label for="external_links">{{ t('profile.external') }}</label>
   <input id="external_links" name="external_links" type="text" value="{{ g.external_links or '' }}" placeholder="TripAdvisor, GetYourGuide…">
+
+  <fieldset id="channels" style="margin-top:18px;border:1px solid var(--line);border-radius:var(--radius);padding:14px;min-width:0">
+    <legend style="font-weight:700;padding:0 6px">{{ t('contact.edit_title') }}</legend>
+    <p class="small muted" style="margin:0 0 6px">{{ t('contact.edit_hint') }}</p>
+    <div class="grid g2" style="gap:12px">
+      <div><label for="whatsapp">WhatsApp</label>
+        <input id="whatsapp" name="whatsapp" type="tel" inputmode="tel" value="{{ ('+' ~ g.whatsapp) if g.whatsapp else '' }}" placeholder="+7 701 000 00 00"></div>
+      <div><label for="instagram">Instagram</label>
+        <input id="instagram" name="instagram" type="text" value="{{ ('@' ~ g.instagram) if g.instagram else '' }}" placeholder="@username"></div>
+      <div><label for="rednote_id">{{ t('contact.rednote_id') }} (小红书号)</label>
+        <input id="rednote_id" name="rednote_id" type="text" value="{{ g.rednote_id or '' }}" placeholder="95012345678"></div>
+      <div><label for="rednote_link">{{ t('contact.rednote_link') }}</label>
+        <input id="rednote_link" name="rednote_link" type="url" value="{{ g.rednote_link or '' }}" placeholder="https://www.xiaohongshu.com/user/profile/…">
+        <div class="hint">{{ t('contact.rednote_link_hint') }}</div></div>
+      <div><label for="x_handle">X (Twitter)</label>
+        <input id="x_handle" name="x_handle" type="text" value="{{ ('@' ~ g.x_handle) if g.x_handle else '' }}" placeholder="@username"></div>
+    </div>
+  </fieldset>
   <button class="btn" style="margin-top:18px">{{ t('common.save') }}</button>
 </form>
 

@@ -256,3 +256,21 @@ CREATE TABLE IF NOT EXISTS tour_bookings (
     status     TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','confirmed','declined','cancelled')),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Каналы связи гида до бронирования (WhatsApp, Instagram, RedNote, X).
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS whatsapp     TEXT;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS instagram    TEXT;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS rednote_id   TEXT;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS rednote_link TEXT;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS x_handle     TEXT;
+
+-- Клики по кнопкам связи (гиды и отели) — аналитика обращений по каналам.
+CREATE TABLE IF NOT EXISTS contact_clicks (
+    id          SERIAL PRIMARY KEY,
+    target_type TEXT NOT NULL CHECK (target_type IN ('guide','hotel')),
+    target_ref  TEXT NOT NULL,
+    channel     TEXT NOT NULL,
+    user_id     INT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS contact_clicks_created ON contact_clicks (created_at);

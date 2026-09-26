@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}{{ t('hotels.title') }}{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">{% endblock %}
+{% block content %}
+<h1>{{ t('hotels.title') }}</h1>
+<p class="muted">{{ t('hotels.lead') }}</p>
+
+<div id="map" class="card" style="padding:0;margin-bottom:16px"></div>
+
+<div class="grid g2" style="gap:16px">
+{% for h in hotels %}
+  <div class="card hotel">
+    <div class="row between" style="align-items:flex-start;gap:10px">
+      <h3 style="margin:0">{{ h.name }}</h3>
+      <span class="badge">{{ t('hotels.kind_' ~ h.kind) }}</span>
+    </div>
+    <div class="small muted" style="margin-top:4px">{{ h.addr }}</div>
+    <div class="tags" style="margin-top:10px">
+      <span class="badge ok">{{ t('hotels.english') }} · {{ h.brand }}</span>
+    </div>
+    <div class="contact-btns" style="margin-top:14px">
+      {% for ch, href in h.links %}
+        <a class="btn small {{ '' if loop.first else 'ghost' }}" href="{{ href }}"
+           {% if ch in ('instagram', 'website', 'whatsapp') %}target="_blank" rel="noopener"{% endif %}
+           data-track="/c/track/hotel/{{ h.slug }}/{{ ch }}">{{ t('hotels.ch_' ~ ch) }}</a>
+      {% endfor %}
+    </div>
+    <div class="small" style="margin-top:10px">
+      {% if h.phone %}<div>☎ {{ h.phone }}</div>{% endif %}
+      {% if h.whatsapp %}<div class="muted">{{ t('hotels.wa_note') }}</div>{% endif %}
+    </div>
+    <div class="small muted" style="margin-top:8px">{{ t('hotels.source') }}:
+      {% for name, url in h.sources %}<a href="{{ url }}" target="_blank" rel="noopener">{{ name }}</a>{{ ', ' if not loop.last }}{% endfor %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+
+<p class="small muted" style="margin-top:16px">{{ t('hotels.disclaimer', date=checked_on.strftime('%d.%m.%Y')) }}</p>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const pins = {{ pins | tojson }};
+  const map = L.map("map", { scrollWheelZoom: false });
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 16, attribution: "© OpenStreetMap" }).addTo(map);
+  const pts = pins.map((p) => {
+    L.circleMarker([p.lat, p.lon], { radius: 9, color: "#ffffff", weight: 2, fillColor: "#b8502a", fillOpacity: 0.9 })
+      .addTo(map).bindTooltip(`<b>${p.name}</b><br>${p.addr}`);
+    return [p.lat, p.lon];
+  });
+  map.fitBounds(pts, { padding: [30, 30] });
+</script>
+{% endblock %}

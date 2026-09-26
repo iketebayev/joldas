@@ -15,7 +15,8 @@
     <a class="logo" href="/"><i></i>{{ app_name }}</a>
     <nav class="nav">
       <a href="/guides" class="{{ 'on' if request.url.path.startswith('/guides') }}">{{ t('nav.guides') }}</a>
-      {% if not user or user.role == 'tourist' %}<a href="/tours" class="{{ 'on' if request.url.path.startswith('/tours') }}">{{ t('nav.tours') }}</a>{% endif %}
+      {% if not user or user.role == 'tourist' %}<a href="/tours" class="{{ 'on' if request.url.path.startswith('/tours') }}">{{ t('nav.tours') }}</a>
+        <a href="/hotels" class="{{ 'on' if request.url.path == '/hotels' }}">{{ t('nav.hotels') }}</a>{% endif %}
       {% if user %}
         {% if user.role == 'admin' %}
           <a href="/dashboard" class="{{ 'on' if request.url.path.startswith('/dashboard') }}">{{ t('nav.dashboard') }}</a>
@@ -52,6 +53,7 @@
 </main>
 <footer><div class="wrap row between">
   <span>{{ app_name }} · {{ t('footer.region') }}</span>
+  <a href="/hotels">{{ t('nav.hotels') }}</a>
 </div></footer>
 <script src="/static/app.js"></script>
 {% block scripts %}{% endblock %}

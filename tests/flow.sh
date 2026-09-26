@@ -243,4 +243,20 @@ q "UPDATE companies SET plan='start', plan_until=NULL WHERE user_id=$AGID" >/dev
 ok "$(curl -s "$B/api/tours" | python3 -c "import sys,json; print('yes' if all(t['id']!=$TID for t in json.load(sys.stdin)) else 'no')")" "yes" "без подписки туры агентства скрыты"
 ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/tours/$TID)" "404" "страница тура без подписки недоступна туристу"
 
+echo "— Связь с гидом до бронирования и отели"
+q "UPDATE guides SET whatsapp='77015550011', instagram='aidos.test', rednote_id='aidos_kz', rednote_link='https://www.xiaohongshu.com/user/profile/test', x_handle=NULL WHERE user_id=$AIDOS" >/dev/null
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/c/guide/$AIDOS/whatsapp)" "303" "гость без входа отправлен на логин"
+ok "$(curl -s $B/guides/$AIDOS | grep -c 77015550011)" "0" "номер гида не виден в коде страницы гостю"
+ok "$(curl -s -b $D/tour $B/guides/$AIDOS | grep -c 77015550011)" "0" "номер гида не виден в коде страницы и вошедшему"
+ok "$(curl -s -b $D/tour "$B/guides/$AIDOS?region=cn" | grep -o 'href="/c/guide/[0-9]*/[a-z]*' | head -1 | sed 's|.*/||')" "rednote" "для Китая первым идёт RedNote"
+ok "$(curl -s -b $D/tour "$B/guides/$AIDOS?region=west" | grep -o 'href="/c/guide/[0-9]*/[a-z]*' | head -1 | sed 's|.*/||')" "whatsapp" "для Запада первым идёт WhatsApp"
+K0=$(q "SELECT count(*) FROM contact_clicks WHERE target_ref='$AIDOS'")
+WA=$(curl -s -o /dev/null -w '%{redirect_url}' -b $D/tour "$B/c/guide/$AIDOS/whatsapp?region=west")
+ok "$(echo "$WA" | grep -q '^https://wa.me/77015550011?text=Hello%21%20Found%20your%20profile%20on' && echo yes)" "yes" "WhatsApp открывается с готовым приветствием"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour "$B/c/guide/$AIDOS/x")" "404" "незаполненный канал — 404"
+ok "$(( $(q "SELECT count(*) FROM contact_clicks WHERE target_ref='$AIDOS'") - K0 ))" "1" "переход записан в статистику"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -X POST $B/c/track/hotel/rixos/call)" "204" "звонок отелю засчитан"
+ok "$(curl -s -H 'Cookie: lang=ru' -b $D/admin $B/dashboard | grep -c 'Обращения по каналам')" "1" "дашборд показывает обращения по каналам"
+ok "$(curl -s $B/hotels | grep -c 'href="tel:')" "4" "у всех отелей есть кнопка звонка"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

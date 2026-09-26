@@ -70,6 +70,28 @@
   </table>
 </div>
 
+<h2>{{ t('dash.channels_title') }}</h2>
+<p class="small muted">{{ t('dash.channels_hint') }}</p>
+<div class="card table-wrap">
+  {% set maxc = (by_channel | map(attribute='total') | max) if by_channel else 0 %}
+  <table class="data">
+    <thead><tr><th>{{ t('dash.col_channel') }}</th><th style="min-width:180px">{{ t('dash.col_clicks') }}</th>
+      <th class="num">{{ t('dash.col_to_guides') }}</th><th class="num">{{ t('dash.col_to_hotels') }}</th></tr></thead>
+    <tbody>
+    {% for r in by_channel %}
+      <tr><td><b>{{ t('contact.ch_' ~ r.channel) }}</b></td>
+        <td><div class="row" style="gap:8px;flex-wrap:nowrap">
+          <div class="bar" style="width:{{ (r.total / maxc * 160) | round if maxc else 0 }}px"
+               data-tip="{{ t('dash.tip_channel', ch=t('contact.ch_' ~ r.channel), n=r.total, users=r.users) }}"></div>
+          <span class="small"><b>{{ r.total }}</b></span></div></td>
+        <td class="num">{{ r.guides }}</td><td class="num">{{ r.hotels }}</td></tr>
+    {% else %}
+      <tr><td colspan="4" class="muted">{{ t('dash.channels_empty') }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
 <h2>{{ t('dash.heat_title') }}</h2>
 <p class="small muted">{{ t('dash.heat_hint') }}</p>
 <div class="card table-wrap">

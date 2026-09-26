@@ -23,7 +23,7 @@ for L in kk ru en; do
   check $D/guide $L /requests 200; check $D/guide $L /profile 200; check $D/guide $L /notifications 200
   check $D/tour $L /requests 200; check $D/tour $L /requests/new 200
   check $D/none $L /tours 200; check $D/tour $L /tours/1 200; check $D/comp $L /tours/mine 200
-  check $D/guide $L /tours/mine 403
+  check $D/guide $L /tours/mine 403; check $D/none $L /hotels 200
   check $D/guide $L /nonexistent 404
 done
 # детальная заявка каждой роли

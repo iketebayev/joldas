@@ -25,7 +25,7 @@
   <p class="small muted" style="margin-top:14px">{{ t('level.hint_' ~ g.level) }}</p>
   {% if addons %}
     <h3 style="margin-top:18px">{{ t('addon.title') }}</h3>
-    <div class="tags">{% for a in addons %}<span class="badge">{{ t('addon.' ~ a.kind) }} · {{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</span>{% endfor %}</div>
+    <div class="tags">{% for a in addons %}<span class="badge wrap">{{ t('addon.' ~ a.kind) }} · {{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</span>{% endfor %}</div>
   {% endif %}
   {% if not user or user.id != g.id %}
     <div style="margin-top:16px">
@@ -33,6 +33,41 @@
     </div>
   {% endif %}
 </div>
+
+{% if channels or (user and user.id == g.id) %}
+<div class="card" id="contact">
+  <h2 style="margin-top:0">{{ t('contact.title') }}</h2>
+  <p class="small muted" style="margin-top:0">{{ t('contact.lead') }}</p>
+  {% if not channels %}
+    <p class="small">{{ t('contact.none_own') }} <a href="/profile#channels">{{ t('contact.fill') }} →</a></p>
+  {% elif not user %}
+    <div class="tags" style="margin-bottom:12px">{% for c in channels %}<span class="badge">{{ t('contact.ch_' ~ c.ch) }}</span>{% endfor %}</div>
+    <a class="btn" href="/login?next=/guides/{{ g.id }}%23contact">{{ t('contact.login') }}</a>
+  {% else %}
+    <div class="small muted">{{ t('contact.region') }}</div>
+    <div class="region-pills">{% for r in regions %}
+      <a href="?region={{ r }}#contact" class="{{ 'on' if r == region }}">{{ t('contact.region_' ~ r) }}</a>{% endfor %}</div>
+    <div class="contact-btns">
+      {% for c in channels if c.ch != 'rednote' or g.rednote_link %}
+        <a class="btn small {{ '' if c.recommended else 'ghost' }}" href="/c/guide/{{ g.id }}/{{ c.ch }}?region={{ region }}" target="_blank" rel="noopener">
+          {{ t('contact.ch_' ~ c.ch) }}{% if c.recommended %} · {{ t('contact.recommended') }}{% endif %}</a>
+      {% endfor %}
+    </div>
+    {% if g.whatsapp %}<div class="greet"><span class="muted">{{ t('contact.greet_label') }}:</span> «{{ greeting }}»</div>{% endif %}
+    {% if g.rednote_id or g.rednote_link %}
+      <div class="rednote">
+        {% if g.rednote_link %}<div class="qr" id="rn-qr" data-link="{{ g.rednote_link }}"></div>{% endif %}
+        <div>
+          <b>RedNote · 小红书</b>
+          {% if g.rednote_id %}<div class="small">{{ t('contact.rednote_id') }}: <b data-track="/c/track/guide/{{ g.id }}/rednote" style="user-select:all">{{ g.rednote_id }}</b></div>{% endif %}
+          {% if g.rednote_link %}<div class="small muted">{{ t('contact.rednote_scan') }}</div>{% endif %}
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+  <p class="small muted" style="margin:12px 0 0">🔒 {{ t('contact.keep_booking', app=app_name) }}</p>
+</div>
+{% endif %}
 
 <div class="card">
   <h2 style="margin-top:0">{{ t('guide.reviews_title') }}</h2>
@@ -73,4 +108,13 @@
   {% endfor %}
 </div>
 </div>
+{% endblock %}
+{% block scripts %}
+{% if user and g.rednote_link %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  const box = document.getElementById("rn-qr");
+  if (box && window.QRCode) new QRCode(box, { text: box.dataset.link, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+</script>
+{% endif %}
 {% endblock %}

@@ -132,7 +132,8 @@
           <div class="body"><b><a href="/guides/{{ o.guide_id }}">{{ o.name }}</a></b>
             <div class="small">{{ m.rating(t, o.rating, o.reviews_count) }}</div>
             <div class="tags" style="margin-top:4px">{{ m.level(t, o.level) }}<span class="badge">{{ t('guides.done_n', n=o.completed_count) }}</span></div>
-            {% if o.message %}<p class="small" style="margin:6px 0 0">«{{ o.message }}»</p>{% endif %}</div>
+            {% if o.message %}<p class="small" style="margin:6px 0 0">«{{ o.message }}»</p>{% endif %}
+            {% if is_owner and o.has_channels and o.status == 'pending' %}<a class="small" href="/guides/{{ o.guide_id }}#contact">💬 {{ t('contact.ask_guide') }}</a>{% endif %}</div>
         </div>
         <div style="text-align:right">
           <div class="price" style="font-weight:800">{{ money(o.price_per_day) }}</div>

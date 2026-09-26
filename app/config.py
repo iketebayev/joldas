@@ -59,3 +59,10 @@ RATES_REFRESH_HOURS = 6
 # Туры агентств
 TRANSPORT = ("tour", "car", "none")
 TOUR_INCLUDES = ("transport", "guide", "meals", "camping", "entry_fee")
+
+# Каналы связи до бронирования и их порядок для региона туриста.
+CHANNELS = ("whatsapp", "instagram", "rednote", "x")
+CHANNEL_ORDER = {"cn": ("rednote", "whatsapp", "instagram", "x"),
+                 "cis": ("whatsapp", "instagram", "x", "rednote"),
+                 "west": ("whatsapp", "instagram", "x", "rednote")}
+CIS_COUNTRIES = ("RU", "UZ", "KG", "AZ", "GE", "KZ")

@@ -21,3 +21,9 @@
     });
   });
 })();
+
+// Счётчик переходов по кнопкам связи, у которых нет своего редиректа (звонок, почта, RedNote ID).
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-track]");
+  if (el && navigator.sendBeacon) navigator.sendBeacon(el.dataset.track);
+});
