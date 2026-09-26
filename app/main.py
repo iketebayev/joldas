@@ -11,21 +11,22 @@ from . import config
 from .auth import LoginRequired
 from .db import close_pool, init_pool, pool
 from .config import RATES_REFRESH_HOURS
-from .services import rates, safety
-from .routers import academy, account, api, contact, tours, auth, billing, dashboard, guides, public, requests, reviews
+from .services import kyc, rates, safety
+from .routers import academy, account, api, contact, moderation, verify, tours, auth, billing, dashboard, guides, public, requests, reviews
 from .web import redirect, render
 
 log = logging.getLogger("app")
 
 
 async def _purge_loop():
-    """Анкеты безопасности удаляются через SAFETY_RETENTION_DAYS после тура."""
+    """Анкеты безопасности — через SAFETY_RETENTION_DAYS после тура, непроверенные сканы KYC — через KYC_PENDING_DAYS."""
     while True:
         try:
             async with pool().acquire() as conn:
                 n = await safety.purge(conn)
-            if n:
-                log.info("purged %s safety forms", n)
+                stale = await kyc.purge_stale(conn)
+            if n or stale:
+                log.info("purged %s safety forms, %s stale kyc submissions", n, stale)
         except Exception as e:  # не роняем приложение из-за фоновой задачи
             log.warning("safety purge failed: %s", e)
         await asyncio.sleep(6 * 3600)
@@ -60,7 +61,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-for r in (public, auth, account, academy, api, contact, tours, guides, requests, reviews, billing, dashboard):
+for r in (public, auth, account, academy, api, contact, verify, moderation, tours, guides, requests, reviews, billing, dashboard):
     app.include_router(r.router)
 
 

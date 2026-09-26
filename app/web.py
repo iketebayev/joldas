@@ -71,5 +71,6 @@ async def render(request: Request, name: str, status_code: int = 200, **ctx):
         specializations=config.SPECIALIZATIONS, deposit_percent=config.DEPOSIT_PERCENT,
         countries=config.COUNTRIES, diets=config.DIETS, risks=config.RISKS,
         addon_kinds=config.ADDON_KINDS, currency_sign=config.CURRENCY_SIGN,
+        lang_names={c: tr('lang.' + c) for c in config.GUIDE_LANGS},
     )
     return templates.TemplateResponse(request, name, ctx, status_code=status_code)

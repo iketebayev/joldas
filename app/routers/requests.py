@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import CURRENCIES, GUIDE_LANGS, PARK_SITES, TRANSPORT
+from ..config import CURRENCIES, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
 from ..db import pool
 from .. import academy
 from ..services import fees, orders, rates, route, safety
@@ -39,7 +39,7 @@ async def index(request: Request):
         )
         active = [a for a in mine if a["status"] in ("awaiting_payment", "confirmed")]
         history = [a for a in mine if a["status"] not in ("awaiting_payment", "confirmed")]
-        return await render(request, "requests/guide_feed.html", g=g, feed=feed, active=active,
+        return await render(request, "requests/guide_feed.html", g=g, feed=feed, active=active, kyc_required=KYC_REQUIRED,
                             history=history[:5], history_total=len(history), sites=await all_sites())
     rows = await db.fetch(
         """SELECT r.*, (SELECT count(*) FROM offers o WHERE o.request_id=r.id AND o.status='pending') AS offers_count
@@ -245,9 +245,12 @@ async def offer(request: Request, rid: int):
     req = await db.fetchrow("SELECT * FROM requests WHERE id=$1", rid)
     if not req:
         raise HTTPException(404)
-    g = await db.fetchrow("SELECT languages FROM guides WHERE user_id=$1", user["id"])
+    g = await db.fetchrow("SELECT languages, id_verified_at FROM guides WHERE user_id=$1", user["id"])
     if req["language"] not in g["languages"]:
         raise HTTPException(403)
+    if KYC_REQUIRED and not g["id_verified_at"]:  # отклики — только после проверки личности
+        flash(request, "kyc.required", "error")
+        return redirect("/verify")
     if form.get("action") == "accept":
         price = req["price_per_day"]
     else:

@@ -1,3 +1,4 @@
+[hidden] { display: none !important; }
 :root {
   --bg: #faf7f2; --surface: #ffffff; --ink: #1d1a16; --muted: #6b645c; --line: #e8e1d7;
   --accent: #b8502a; --accent-ink: #ffffff; --accent-soft: #f6e7df;
@@ -222,3 +223,50 @@ input.invalid { outline: 2px solid var(--bad); }
 .rednote .qr { width: 120px; height: 120px; background: #fff; }
 .rednote .qr img, .rednote .qr canvas { width: 120px !important; height: 120px !important; }
 .greet { font-size: 13px; background: var(--bg); border-radius: 10px; padding: 8px 10px; margin-top: 10px; overflow-wrap: anywhere; }
+
+/* Фото гида, видеовизитка, бейджи доверия */
+.avatar.photo { object-fit: cover; display: block; background: var(--line); }
+.has-link { position: relative; }
+.has-link .stretched { color: inherit; }
+.has-link .stretched::after { content: ""; position: absolute; inset: 0; border-radius: var(--radius); }
+.vthumb { position: relative; z-index: 1; border: 0; padding: 0; background: none; cursor: pointer; border-radius: 50%; flex: none; }
+.vthumb .play { position: absolute; right: -2px; bottom: -2px; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-size: 10px; display: grid; place-items: center; border: 2px solid var(--surface); }
+.vthumb .avatar.big + .play { width: 28px; height: 28px; font-size: 12px; }
+.vthumb video.pv { position: absolute; inset: 0; object-fit: cover; }
+.vthumb:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.badge.verified { background: #e3f2e6; color: #1e6b2e; }
+.badge.vlang { background: #e8effc; color: #1f4f9c; }
+.vcard { display: flex; align-items: center; gap: 12px; margin-top: 16px; padding: 8px 14px 8px 8px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--bg); position: relative; }
+.vcard .avatar { width: 54px; height: 96px; border-radius: 10px; object-fit: cover; }
+.vcard .play { left: 25px; top: 38px; right: auto; bottom: auto; }
+.vcard-label { font-weight: 600; font-size: 14px; color: var(--ink); }
+.vmodal { border: 0; padding: 0; border-radius: 18px; max-width: min(760px, calc(100vw - 24px)); width: 100%; background: var(--surface); color: var(--ink); }
+.vmodal::backdrop { background: rgba(20, 16, 12, .72); }
+.vm-body { display: flex; gap: 0; }
+.vm-body video { width: min(360px, 55vw); aspect-ratio: 9 / 16; max-height: 82vh; background: #000; display: block; }
+.vm-side { padding: 18px; flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+.vm-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+@media (max-width: 640px) {
+  .vm-body { flex-direction: column; }
+  .vm-body video { width: 100%; max-height: 62vh; }
+  .vm-actions { margin-top: 4px; }
+}
+/* Съёмка селфи и видео в браузере */
+.cam { position: relative; background: #000; border-radius: 14px; overflow: hidden; max-width: 420px; }
+.cam video, .cam img { width: 100%; display: block; }
+.cam .cue { position: absolute; left: 10px; right: 10px; bottom: 10px; background: rgba(0,0,0,.6); color: #fff;
+  padding: 8px 10px; border-radius: 10px; font-size: 14px; }
+.shots { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.shots img { width: 120px; border-radius: 10px; border: 1px solid var(--line); }
+.osteps { counter-reset: s; display: grid; gap: 14px; }
+.ostep { position: relative; padding-left: 44px; min-width: 0; }
+.ostep::before { counter-increment: s; content: counter(s); position: absolute; left: 0; top: 0; width: 30px; height: 30px;
+  border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; }
+.ostep.done::before { content: "✓"; background: #e3f2e6; color: #1e6b2e; }
+.rec-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #d33; margin-right: 6px; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .rec-dot { animation: none; } }
+.vm-meta { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
+@media (max-width: 640px) { .vm-body video { max-height: 52vh; } .vm-side { padding: 14px; } }

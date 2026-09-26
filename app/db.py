@@ -6,7 +6,7 @@ import asyncpg
 _pool: asyncpg.Pool | None = None
 
 
-async def init_pool() -> None:
+async def init_pool(apply_schema: bool = True) -> None:
     global _pool
     _pool = await asyncpg.create_pool(
         host=os.getenv("POSTGRES_HOST", "db"),
@@ -16,6 +16,8 @@ async def init_pool() -> None:
         min_size=1,
         max_size=10,
     )
+    if not apply_schema:  # воркер: схему применяет app, иначе гонка DDL при старте
+        return
     schema = (Path(__file__).parent / "schema.sql").read_text(encoding="utf-8")
     async with _pool.acquire() as c:
         await c.execute(schema)

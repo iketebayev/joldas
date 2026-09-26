@@ -3,6 +3,16 @@
 {% block content %}
 <div class="row between"><h1>{{ t('profile.edit_title') }}</h1><a href="/guides/{{ user.id }}">{{ t('profile.view_public') }} →</a></div>
 <p class="muted">{{ t('profile.edit_hint') }}</p>
+<div class="card osteps" style="margin-bottom:16px">
+  <b>{{ t('onb.title') }}</b>
+  {% set p_ok = g.languages and g.day_rate %}
+  <div class="ostep {{ 'done' if p_ok }}"><b>{{ t('onb.profile') }}</b>
+    <div class="small muted">{{ t('onb.profile_ok') if p_ok else t('onb.profile_todo') }}</div></div>
+  <div class="ostep {{ 'done' if g.id_verified_at }}"><b>{{ t('onb.identity') }}</b>{% if kyc_required %} <span class="badge">{{ t('onb.required') }}</span>{% endif %}
+    <div class="small muted">{% if g.id_verified_at %}{{ t('kyc.badge') }}{% elif kyc and kyc.status == 'pending' %}{{ t('kyc.pending_title') }}{% else %}<a href="/verify">{{ t('onb.identity_todo') }} →</a>{% endif %}</div></div>
+  <div class="ostep {{ 'done' if vid and vid.status == 'approved' }}"><b>{{ t('onb.video') }}</b> <span class="badge">{{ t('onb.recommended') }}</span>
+    <div class="small muted">{% if vid and vid.status != 'failed' and vid.status != 'rejected' %}{{ t('video.st_' ~ vid.status) }} · {% endif %}<a href="/profile/video">{{ t('onb.video_todo') }} →</a></div></div>
+</div>
 <form class="card" method="post" action="/profile">
   <label>{{ t('profile.languages') }}</label>
   <div class="checks">{% for c in guide_langs %}

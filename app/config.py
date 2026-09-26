@@ -66,3 +66,16 @@ CHANNEL_ORDER = {"cn": ("rednote", "whatsapp", "instagram", "x"),
                  "cis": ("whatsapp", "instagram", "x", "rednote"),
                  "west": ("whatsapp", "instagram", "x", "rednote")}
 CIS_COUNTRIES = ("RU", "UZ", "KG", "AZ", "GE", "KZ")
+
+# Верификация личности и видеовизитка.
+MEDIA_DIR = os.getenv("MEDIA_DIR", "/data/media")
+KYC_KEY = os.getenv("KYC_KEY", "")
+KYC_REQUIRED = os.getenv("KYC_REQUIRED", "1") == "1"   # без проверки гид не откликается на заявки
+KYC_PENDING_DAYS = 30                                   # непроверенные сканы удаляются
+DOC_TYPES = ("id_card", "passport")
+# Задания для живого селфи: два случайных на попытку, модератор сверяет жест на кадре.
+KYC_CHALLENGES = ("palm", "two_fingers", "thumb_up", "turn_left", "turn_right", "touch_ear")
+PHOTO_MAX_MB = 10
+VIDEO_MAX_MB = 50
+VIDEO_MIN_SEC, VIDEO_MAX_SEC = 30, 60
+VIDEO_LEVELS = ("fluent", "conversational", "basic")

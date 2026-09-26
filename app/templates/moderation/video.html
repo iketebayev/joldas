@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ t('mod.video_title') }}{% endblock %}
+{% block content %}
+<div class="row between"><h1>{{ t('mod.video_title') }}: {{ v.name }}</h1><a href="/dashboard/verify">← {{ t('mod.title') }}</a></div>
+
+<div class="row" style="gap:20px;align-items:flex-start;flex-wrap:wrap">
+  <video controls playsinline preload="metadata" crossorigin="anonymous" poster="/media/video/{{ v.token }}/poster.jpg"
+    style="width:min(320px,100%);border-radius:14px;background:#000" src="/media/video/{{ v.token }}/video.mp4">
+    {% for l in subs %}<track kind="subtitles" srclang="{{ l }}" label="{{ t('lang.' ~ l) }}" src="/media/video/{{ v.token }}/subs/{{ l }}.vtt" {{ 'default' if loop.first }}>{% endfor %}
+  </video>
+  <div style="flex:1;min-width:260px">
+    <h3 style="margin-top:0">{{ t('mod.auto_checks') }}</h3>
+    {% set dur_ok = v.duration and 29 <= v.duration <= 61 %}
+    {% set vol_ok = v.mean_volume is not none and -35 <= v.mean_volume <= -8 %}
+    {% set sp_ok = v.speech_ratio is not none and v.speech_ratio >= 0.5 %}
+    {% set lang_ok = v.detected_lang == v.lang and (v.detected_prob or 0) >= 0.7 %}
+    <table class="data">
+      <tr><td>{{ t('mod.c_duration') }}</td><td>{{ '%.0f' | format(v.duration or 0) }} {{ t('mod.sec') }}</td><td>{{ '✅' if dur_ok else '⚠️' }}</td></tr>
+      <tr><td>{{ t('mod.c_volume') }}</td><td>{{ '%.1f' | format(v.mean_volume) if v.mean_volume is not none else '—' }} dB</td><td>{{ '✅' if vol_ok else '⚠️' }}</td></tr>
+      <tr><td>{{ t('mod.c_speech') }}</td><td>{{ ((v.speech_ratio or 0) * 100) | round | int }}%</td><td>{{ '✅' if sp_ok else '⚠️' }}</td></tr>
+      <tr><td>{{ t('mod.c_lang') }}</td><td>{{ t('lang.' ~ v.lang) if v.lang in guide_langs else v.lang }} → {{ t('lang.' ~ v.detected_lang) if v.detected_lang in guide_langs else (v.detected_lang or '—') }} ({{ ((v.detected_prob or 0) * 100) | round | int }}%)</td><td>{{ '✅' if lang_ok else '⚠️' }}</td></tr>
+    </table>
+    <p class="small muted">{{ t('mod.auto_hint') }}</p>
+  </div>
+</div>
+
+{% if v.status == 'review' %}
+<form class="card" method="post" action="/dashboard/video/{{ v.id }}/approve" style="margin-top:16px">
+  <h3 style="margin-top:0">{{ t('mod.level_title', lang=t('lang.' ~ v.lang)) }}</h3>
+  {% for l in levels %}<label class="checks" style="margin-bottom:6px"><span><input type="radio" name="level" value="{{ l }}" required>
+    <b>{{ t('video.level_' ~ l) }}</b> — <span class="small">{{ t('mod.level_' ~ l ~ '_hint') }}</span></span></label>{% endfor %}
+  <h3>{{ t('mod.subs_title') }}</h3>
+  <p class="small muted" style="margin-top:0">{{ t('mod.subs_hint') }}</p>
+  {% if not subs %}<p class="small">{{ t('mod.no_subs') }}</p>{% endif %}
+  {% for l in sub_langs %}
+    <label for="sub_{{ l }}">{{ t('lang.' ~ l) if l in guide_langs else l }}{% if l not in subs %} <span class="small muted">· {{ t('mod.sub_add') }}</span>{% endif %}</label>
+    <textarea id="sub_{{ l }}" name="sub_{{ l }}" style="min-height:{{ 140 if l in subs else 70 }}px;font-family:ui-monospace,monospace;font-size:13px"
+      placeholder="WEBVTT&#10;&#10;00:00:00.000 --> 00:00:03.000&#10;…">{{ subs.get(l, '') }}</textarea>
+  {% endfor %}
+  <button class="btn" style="margin-top:12px">✓ {{ t('mod.approve_video') }}</button>
+</form>
+<form class="card" method="post" action="/dashboard/video/{{ v.id }}/reject" style="margin-top:16px">
+  <h3 style="margin-top:0">{{ t('mod.reject_title') }}</h3>
+  <select name="reason" required>{% for r in reasons %}<option value="{{ r }}">{{ t('video.reason_' ~ r) }}</option>{% endfor %}</select>
+  <button class="btn danger" style="margin-top:10px">{{ t('mod.reject') }}</button>
+</form>
+{% else %}
+  <div class="flash ok" style="margin-top:16px">{{ t('mod.st_' ~ v.status) if v.status in ('approved','rejected','replaced') else t('video.st_' ~ v.status) }}</div>
+{% endif %}
+{% endblock %}

@@ -5,14 +5,25 @@
 <div class="grid" style="grid-template-columns:minmax(0,1fr)">
 <div class="card">
   <div class="guide-card">
-    <div class="avatar big">{{ m.initial(g.name) }}</div>
+    {{ m.media(t, g, 'big') }}
     <div class="body">
       <div class="row between"><h1>{{ g.name }}</h1></div>
       <div>{{ m.rating(t, g.rating, g.reviews_count) }}</div>
+      {% if g.id_verified_at or g.verified_langs %}<div class="tags" style="margin-top:8px">{{ m.trust(t, g) }}</div>{% endif %}
       <div class="tags" style="margin-top:10px">{{ m.level(t, g.level) }}
         <span class="badge">{{ t('guides.done_n', n=g.completed_count) }}</span></div>
     </div>
   </div>
+  {% if g.video_token %}
+    <button type="button" class="vcard vthumb" data-video="/media/video/{{ g.video_token }}/video.mp4"
+      data-poster="/media/video/{{ g.video_token }}/poster.jpg" data-preview="/media/video/{{ g.video_token }}/preview.mp4"
+      data-subs="{{ (g.video_subs or []) | join(',') }}" data-base="/media/video/{{ g.video_token }}/subs/"
+      data-lang="{{ g.video_lang }}" data-name="{{ g.name }}" data-guide="{{ g.id }}" data-meta="{{ m.vmeta(t, g) }}">
+      <img class="avatar" src="/media/video/{{ g.video_token }}/poster.jpg" alt="">
+      <span class="play" aria-hidden="true">▶</span>
+      <span class="vcard-label">{{ t('video.intro') }} · {{ t('lang.' ~ g.video_lang) }}</span>
+    </button>
+  {% endif %}
   {% if g.bio %}<p style="margin-top:16px">{{ g.bio }}</p>{% endif %}
   <dl class="kv" style="margin-top:16px">
     <dt>{{ t('profile.languages') }}</dt><dd><div class="tags">{{ m.langs(t, g.languages) }}</div></dd>
@@ -110,6 +121,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
+{% include "guides/_video_modal.html" %}
 {% if user and g.rednote_link %}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>

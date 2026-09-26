@@ -86,11 +86,15 @@ async def dashboard(request: Request):
            WHERE NOT rr.resolved AND NOT r.hidden ORDER BY rr.created_at DESC"""
     )
     broadcasts = await db.fetch("SELECT * FROM broadcasts ORDER BY id DESC LIMIT 5")
+    to_verify = await db.fetchrow(
+        """SELECT (SELECT count(*) FROM guide_kyc WHERE status='pending') AS kyc,
+                  (SELECT count(*) FROM guide_videos WHERE status='review') AS video"""
+    )
     return await render(
         request, "dashboard/index.html", totals=totals, fill_rate=fill_rate, by_lang=by_lang,
         months=months, heat_langs=heat_langs, heat_map=heat_map,
         sites_json=[dict(s) for s in sites], fin=fin,
-        reports=reports, broadcasts=broadcasts, by_country=by_country, by_channel=by_channel,
+        reports=reports, broadcasts=broadcasts, by_country=by_country, by_channel=by_channel, to_verify=to_verify,
     )
 
 

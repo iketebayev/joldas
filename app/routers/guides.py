@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from ..auth import current_user, require_user
-from ..config import ADDON_KINDS, APP_NAME, GUIDE_LANGS, SPECIALIZATIONS
+from ..config import ADDON_KINDS, APP_NAME, GUIDE_LANGS, KYC_REQUIRED, SPECIALIZATIONS
 from ..db import pool
 from ..services import contact
 from ..web import flash, lang_of, redirect, render
@@ -9,6 +9,15 @@ from ..web import flash, lang_of, redirect, render
 router = APIRouter()
 
 LEVEL_FILTER = {"experienced": ("experienced", "expert"), "expert": ("expert",)}
+
+
+# Одобренная видеовизитка и подтверждённые по видео языки — для каталога и профиля.
+MEDIA_COLS = """, v.token AS video_token, v.lang AS video_lang, v.level AS video_level,
+    (SELECT array_agg(k ORDER BY k) FROM jsonb_object_keys(v.subtitles) k) AS video_subs,
+    (SELECT array_agg(l.lang || ':' || l.level ORDER BY l.lang) FROM guide_lang_levels l
+      WHERE l.guide_id = u.id) AS verified_langs"""
+MEDIA_JOIN = """LEFT JOIN LATERAL (SELECT * FROM guide_videos gv WHERE gv.guide_id = u.id AND gv.status = 'approved'
+    ORDER BY gv.id DESC LIMIT 1) v ON TRUE"""
 
 
 async def all_sites():
@@ -28,8 +37,8 @@ async def catalog(request: Request, language: str = "", spec: str = "", level: s
     if site:
         args.append(site); where.append(f"${len(args)} = ANY(g.site_ids)")
     rows = await pool().fetch(
-        f"""SELECT u.id, u.name, u.rating, u.reviews_count, u.is_demo, g.*
-            FROM guides g JOIN users u ON u.id=g.user_id
+        f"""SELECT u.id, u.name, u.rating, u.reviews_count, u.is_demo, g.* {MEDIA_COLS}
+            FROM guides g JOIN users u ON u.id=g.user_id {MEDIA_JOIN}
             WHERE {' AND '.join(where)}
             ORDER BY u.rating DESC NULLS LAST, g.completed_count DESC, u.reviews_count DESC""",
         *args,
@@ -53,8 +62,8 @@ async def guide_reviews(guide_id: int):
 async def profile(request: Request, guide_id: int, region: str = ""):
     db = pool()
     g = await db.fetchrow(
-        """SELECT u.id, u.name, u.rating, u.reviews_count, u.is_demo, g.*
-           FROM guides g JOIN users u ON u.id=g.user_id WHERE u.id=$1""",
+        f"""SELECT u.id, u.name, u.rating, u.reviews_count, u.is_demo, g.* {MEDIA_COLS}
+           FROM guides g JOIN users u ON u.id=g.user_id {MEDIA_JOIN} WHERE u.id=$1""",
         guide_id,
     )
     if not g:
@@ -87,9 +96,15 @@ async def guide_addons(guide_id: int):
 @router.get("/profile")
 async def edit_form(request: Request):
     user = await require_user(request, "guide")
-    g = await pool().fetchrow("SELECT * FROM guides WHERE user_id=$1", user["id"])
+    db = pool()
+    g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", user["id"])
+    # Онбординг: профиль → проверка личности → видеовизитка.
+    kyc = await db.fetchrow("SELECT status FROM guide_kyc WHERE guide_id=$1 ORDER BY id DESC LIMIT 1", user["id"])
+    vid = await db.fetchrow(
+        "SELECT status FROM guide_videos WHERE guide_id=$1 AND status<>'replaced' ORDER BY id DESC LIMIT 1", user["id"]
+    )
     return await render(request, "guides/edit.html", g=g, sites=await all_sites(),
-                        addons=await guide_addons(user["id"]))
+                        addons=await guide_addons(user["id"]), kyc=kyc, vid=vid, kyc_required=KYC_REQUIRED)
 
 
 @router.post("/profile/addons")

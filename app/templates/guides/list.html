@@ -34,19 +34,21 @@
 
 <div class="grid g2">
 {% for g in rows %}
-  <a class="card guide-card" href="/guides/{{ g.id }}" style="color:inherit;text-decoration:none">
-    <div class="avatar">{{ m.initial(g.name) }}</div>
+  <div class="card guide-card has-link">
+    {{ m.media(t, g) }}
     <div class="body">
-      <div class="row between"><h3>{{ g.name }}</h3></div>
+      <div class="row between"><h3><a class="stretched" href="/guides/{{ g.id }}">{{ g.name }}</a></h3></div>
       <div class="small">{{ m.rating(t, g.rating, g.reviews_count) }}</div>
+      {% if g.id_verified_at or g.verified_langs %}<div class="tags" style="margin-top:8px">{{ m.trust(t, g) }}</div>{% endif %}
       <div class="tags" style="margin-top:8px">{{ m.level(t, g.level) }}{{ m.langs(t, g.languages) }}</div>
       <div class="small muted" style="margin-top:8px">
         {{ t('guides.done_n', n=g.completed_count) }}{% if g.day_rate %} · {{ t('guides.from') }} {{ money(g.day_rate) }} / {{ t('common.day') }}{% endif %}
       </div>
     </div>
-  </a>
+  </div>
 {% else %}
   <div class="card empty">{{ t('guides.empty') }}</div>
 {% endfor %}
 </div>
+{% include "guides/_video_modal.html" %}
 {% endblock %}

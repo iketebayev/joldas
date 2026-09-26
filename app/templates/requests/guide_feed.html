@@ -3,6 +3,12 @@
 {% block title %}{{ t('nav.feed') }}{% endblock %}
 {% block content %}
 <h1>{{ t('feed.title') }}</h1>
+{% if kyc_required and not g.id_verified_at %}
+  <div class="card row between" style="margin:12px 0;border-color:#e0b24a;background:#fdf3dc">
+    <div><b>🪪 {{ t('kyc.gate_title') }}</b><div class="small">{{ t('kyc.gate_text') }}</div></div>
+    <a class="btn small" href="/verify">{{ t('kyc.gate_btn') }}</a>
+  </div>
+{% endif %}
 {% if g.level == 'novice' %}
   <div class="card row between" style="margin:12px 0;border-color:var(--accent);background:var(--accent-soft)">
     <div><b>🎓 {{ t('feed.novice_title') }}</b><div class="small">{{ t('feed.novice_text') }}</div></div>

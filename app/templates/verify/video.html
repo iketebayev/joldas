@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('video.title') }}{% endblock %}
+{% block content %}
+<div class="row between"><h1>{{ t('video.title') }}</h1><a href="/profile">← {{ t('nav.profile') }}</a></div>
+<p class="muted">{{ t('video.lead') }}</p>
+
+{% if live %}
+  <div class="card row" style="gap:16px;align-items:flex-start">
+    <video src="/media/video/{{ live.token }}/video.mp4" poster="/media/video/{{ live.token }}/poster.jpg" controls playsinline
+      style="width:160px;border-radius:12px;background:#000"></video>
+    <div><span class="badge vlang">🎥 {{ t('lang.' ~ live.lang) }} · {{ t('video.level_' ~ live.level) }}</span>
+      <div class="small" style="margin-top:6px">{{ t('video.live_since', date=live.reviewed_at.strftime('%d.%m.%Y')) }}</div>
+      <form method="post" action="/profile/video/delete" style="margin-top:10px" onsubmit="return confirm({{ t('video.delete_confirm') | tojson }})">
+        <button class="btn small danger">{{ t('video.delete') }}</button></form></div>
+  </div>
+{% endif %}
+
+{% if latest and latest.status in ('processing', 'review', 'failed', 'rejected') and (not live or latest.id != live.id) %}
+  <div class="flash {{ 'error' if latest.status in ('failed', 'rejected') else 'ok' }}" style="margin-top:12px">
+    {{ t('video.st_' ~ latest.status) }}
+    {% if latest.status == 'rejected' %}— {{ t('video.reason_' ~ latest.reject_reason) }}{% endif %}
+    {% if latest.status == 'failed' and latest.error and latest.error.startswith('duration') %}— {{ t('video.failed_length_hint', min=min_sec, max=max_sec) }}{% endif %}
+  </div>
+{% endif %}
+
+<div class="card" style="margin-top:16px">
+  <h3 style="margin-top:0">{{ live and t('video.replace') or t('video.new') }}</h3>
+  <ul class="small" style="padding-left:18px;margin-top:0">
+    <li>{{ t('video.tip_len', min=min_sec, max=max_sec) }}</li><li>{{ t('video.tip_what') }}</li>
+    <li>{{ t('video.tip_how') }}</li><li>{{ t('video.tip_check') }}</li>
+  </ul>
+  <form id="vform" method="post" action="/profile/video" enctype="multipart/form-data">
+    <label for="vlang">{{ t('video.lang') }}</label>
+    <select id="vlang" name="lang" required style="max-width:320px">
+      {% for c in g.languages %}<option value="{{ c }}" {{ 'selected' if c not in ('ru', 'kk') and loop.first }}>{{ t('lang.' ~ c) }}</option>{% endfor %}
+    </select>
+
+    <div class="grid g2" style="gap:16px;margin-top:14px">
+      <div>
+        <b>🎙 {{ t('video.record') }}</b>
+        <div class="cam" id="rcam" hidden style="margin-top:8px;aspect-ratio:9/16;max-width:260px">
+          <video id="rv" playsinline muted autoplay style="height:100%;object-fit:cover"></video>
+          <div class="cue" id="rtime"></div></div>
+        <div class="row" style="gap:8px;margin-top:8px">
+          <button type="button" class="btn small ghost" id="ron">📷 {{ t('kyc.cam_on') }}</button>
+          <button type="button" class="btn small" id="rstart" hidden>● {{ t('video.rec_start') }}</button>
+          <button type="button" class="btn small dark" id="rstop" hidden>■ {{ t('video.rec_stop') }}</button>
+        </div>
+        <div class="hint" id="rerr" hidden>{{ t('kyc.cam_error') }}</div>
+        <video id="rprev" controls playsinline hidden style="margin-top:8px;max-width:260px;border-radius:12px"></video>
+      </div>
+      <div>
+        <b>⬆ {{ t('video.upload') }}</b>
+        <input type="file" name="video" id="vfile" accept="video/mp4,video/webm,video/quicktime" style="margin-top:8px">
+        <div class="hint">{{ t('video.upload_hint', mb=max_mb) }}</div>
+      </div>
+    </div>
+    <progress id="vprog" max="100" value="0" hidden style="width:100%;margin-top:12px"></progress>
+    <button class="btn" id="vsend" style="margin-top:14px">{{ t('video.send') }}</button>
+    <div class="hint">{{ t('video.after_send') }}</div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  const MAX_S = {{ max_sec }}, MIN_S = {{ min_sec }}, MAX_B = {{ max_mb }} * 1024 * 1024;
+  const T = {{ {'short': t('video.too_short_js', min=min_sec), 'big': t('video.too_big'), 'none': t('video.choose')} | tojson }};
+  const rv = document.getElementById("rv"), rcam = document.getElementById("rcam"), rtime = document.getElementById("rtime");
+  const rstart = document.getElementById("rstart"), rstop = document.getElementById("rstop"), rprev = document.getElementById("rprev");
+  let rec, chunks = [], recorded = null, secs = 0, timer;
+  document.getElementById("ron").onclick = async () => {
+    try {
+      rv.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 720, height: 1280 }, audio: true });
+      rcam.hidden = false; rstart.hidden = false; document.getElementById("ron").hidden = true;
+    } catch (e) { document.getElementById("rerr").hidden = false; }
+  };
+  rstart.onclick = () => {
+    chunks = []; secs = 0; recorded = null;
+    const type = ["video/mp4", "video/webm;codecs=vp9,opus", "video/webm"].find((x) => MediaRecorder.isTypeSupported(x));
+    rec = new MediaRecorder(rv.srcObject, type ? { mimeType: type, videoBitsPerSecond: 2500000 } : {});
+    rec.ondataavailable = (e) => chunks.push(e.data);
+    rec.onstop = () => {
+      recorded = new Blob(chunks, { type: rec.mimeType.split(";")[0] });
+      rprev.src = URL.createObjectURL(recorded); rprev.hidden = false; rstart.hidden = false; rstop.hidden = true;
+      rstart.textContent = "● " + {{ t('video.rec_again') | tojson }};
+    };
+    rec.start(1000); rstart.hidden = true; rstop.hidden = false;
+    rtime.innerHTML = '<span class="rec-dot"></span>0:00';
+    timer = setInterval(() => {
+      secs++; rtime.innerHTML = '<span class="rec-dot"></span>' + Math.floor(secs / 60) + ":" + String(secs % 60).padStart(2, "0") + " / " + MAX_S + "s";
+      if (secs >= MAX_S) rstop.click();
+    }, 1000);
+  };
+  rstop.onclick = () => { clearInterval(timer); rec.stop(); rtime.textContent = secs + "s"; };
+  document.getElementById("vform").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target), file = document.getElementById("vfile").files[0];
+    if (recorded && !file) {
+      if (secs < MIN_S) { alert(T.short); return; }
+      fd.set("video", recorded, "intro." + (recorded.type === "video/mp4" ? "mp4" : "webm"));
+    } else if (!file) { alert(T.none); return; }
+    const size = (file || recorded).size;
+    if (size > MAX_B) { alert(T.big); return; }
+    const xhr = new XMLHttpRequest(), bar = document.getElementById("vprog");
+    bar.hidden = false; document.getElementById("vsend").disabled = true;
+    xhr.upload.onprogress = (p) => { if (p.lengthComputable) bar.value = p.loaded / p.total * 100; };
+    xhr.onload = () => { location.href = xhr.responseURL || "/profile/video"; };
+    xhr.open("POST", "/profile/video"); xhr.send(fd);
+  });
+})();
+</script>
+{% endblock %}

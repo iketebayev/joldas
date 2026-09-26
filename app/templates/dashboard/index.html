@@ -7,6 +7,11 @@
 {% block content %}
 <h1>{{ t('dash.title') }}</h1>
 <p class="muted">{{ t('dash.subtitle') }}</p>
+<a class="card row between" href="/dashboard/verify" style="margin-top:12px;color:inherit;text-decoration:none;{{ 'border-color:#e0b24a;background:#fdf3dc' if to_verify.kyc or to_verify.video }}">
+  <div><b>🪪 {{ t('mod.title') }}</b>
+    <div class="small">{{ t('mod.pending_n', kyc=to_verify.kyc, video=to_verify.video) }}</div></div>
+  <span class="btn small ghost">{{ t('mod.open') }} →</span>
+</a>
 
 <div class="kpis" style="margin-top:16px">
   <div class="card kpi"><div class="v">{{ totals.all }}</div><div class="l">{{ t('dash.k_requests') }}</div></div>

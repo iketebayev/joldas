@@ -24,6 +24,8 @@ for L in kk ru en; do
   check $D/tour $L /requests 200; check $D/tour $L /requests/new 200
   check $D/none $L /tours 200; check $D/tour $L /tours/1 200; check $D/comp $L /tours/mine 200
   check $D/guide $L /tours/mine 403; check $D/none $L /hotels 200
+  check $D/guide $L /verify 200; check $D/guide $L /profile/video 200; check $D/admin $L /dashboard/verify 200
+  check $D/none $L "/guides?language=fr" 200; check $D/tour $L /dashboard/verify 403
   check $D/guide $L /nonexistent 404
 done
 # детальная заявка каждой роли

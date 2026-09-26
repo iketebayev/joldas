@@ -259,4 +259,56 @@ ok "$(curl -s -o /dev/null -w '%{http_code}' -X POST $B/c/track/hotel/rixos/call
 ok "$(curl -s -H 'Cookie: lang=ru' -b $D/admin $B/dashboard | grep -c 'Обращения по каналам')" "1" "дашборд показывает обращения по каналам"
 ok "$(curl -s $B/hotels | grep -c 'href="tel:')" "4" "у всех отелей есть кнопка звонка"
 
+echo "— Проверка личности гида и видеовизитка"
+IMG="docker compose exec -T worker ffmpeg -v error -f lavfi -i testsrc=size=800x600 -frames:v 1 -f image2 -c:v mjpeg -"
+$IMG > $D/doc.jpg; cp $D/doc.jpg $D/s0.jpg; cp $D/doc.jpg $D/s1.jpg; cp $D/doc.jpg $D/ph.jpg
+NEWG="kyc$(date +%s)@test.kz"
+curl -s -o /dev/null -c $D/ng -b $D/ng -X POST $B/register -d "role=guide&name=Тест Гид&email=$NEWG&password=secret123"
+NG=$(q "SELECT id FROM users WHERE email='$NEWG'")
+q "UPDATE guides SET languages='{en}', day_rate=20000 WHERE user_id=$NG" >/dev/null
+ORID=$(q "SELECT id FROM requests WHERE status='open' AND language='en' AND date_from >= CURRENT_DATE LIMIT 1")
+ok "$(curl -s -o /dev/null -w '%{redirect_url}' -b $D/ng -c $D/ng -X POST $B/requests/$ORID/offer -d 'action=accept' | sed 's|.*/verify|/verify|')" "/verify" "непроверенный гид не может откликнуться"
+ok "$(q "SELECT count(*) FROM offers WHERE guide_id=$NG")" "0" "отклик не создан"
+curl -s -o /dev/null -b $D/ng -c $D/ng $B/verify
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/ng -c $D/ng -X POST $B/verify -F doc_type=id_card -F doc=@$D/doc.jpg -F selfie_0=@$D/s0.jpg -F selfie_1=@$D/s1.jpg -F photo=@$D/ph.jpg)" "303" "без согласия — отказ"
+ok "$(q "SELECT count(*) FROM guide_kyc WHERE guide_id=$NG")" "0" "заявка без согласия не сохранена"
+curl -s -o /dev/null -b $D/ng -c $D/ng -X POST $B/verify -F consent=1 -F doc_type=id_card -F doc=@$D/doc.jpg -F selfie_0=@$D/s0.jpg -F selfie_1=@$D/s1.jpg -F photo=@$D/ph.jpg
+KID=$(q "SELECT id FROM guide_kyc WHERE guide_id=$NG")
+ok "$(q "SELECT status || '/' || cardinality(selfie_files) || '/' || cardinality(challenges) FROM guide_kyc WHERE id=$KID")" "pending/2/2" "заявка на проверку: документ, 2 селфи, 2 задания"
+DOCF=$(q "SELECT doc_file FROM guide_kyc WHERE id=$KID")
+ok "$(docker compose exec -T app sh -c "head -c 5 /data/media/kyc/$DOCF")" "gAAAA" "скан документа зашифрован на диске"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/ng $B/dashboard/kyc/$KID/file/doc/0)" "403" "гид не открывает сканы через модерацию"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/admin $B/dashboard/kyc/$KID/file/doc/0)" "200" "модератор видит скан"
+PH=$(q "SELECT photo_file FROM guide_kyc WHERE id=$KID")
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/media/photo/$PH)" "404" "фото до одобрения не видно публично"
+ok "$(post admin /dashboard/kyc/$KID/approve 'doc_valid=1&name_match=1')" "303" "одобрение без всех галочек не проходит"
+ok "$(q "SELECT status FROM guide_kyc WHERE id=$KID")" "pending" "статус не изменился"
+post admin /dashboard/kyc/$KID/approve 'doc_valid=1&name_match=1&liveness=1&face_match=1&photo_match=1' >/dev/null
+ok "$(q "SELECT status || '/' || (doc_file IS NULL) || '/' || (selfie_files IS NULL) FROM guide_kyc WHERE id=$KID")" "approved/true/true" "одобрено, ссылки на сканы стёрты"
+ok "$(docker compose exec -T app sh -c "ls /data/media/kyc/$DOCF 2>/dev/null | wc -l")" "0" "файлы сканов удалены с диска"
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/media/photo/$PH)" "200" "фото профиля стало публичным"
+ok "$(curl -s $B/guides/$NG | grep -c 'badge verified')" "1" "в профиле бейдж «Личность подтверждена»"
+post ng /requests/$ORID/offer 'action=accept' >/dev/null
+ok "$(q "SELECT count(*) FROM offers WHERE guide_id=$NG")" "1" "после проверки отклик проходит"
+
+docker compose exec -T worker ffmpeg -v error -f lavfi -i testsrc=size=360x640:rate=15 -f lavfi -i sine=frequency=440 -t 5 -c:v libx264 -c:a aac -f mp4 -movflags frag_keyframe+empty_moov - > $D/short.mp4
+curl -s -o /dev/null -b $D/ng -c $D/ng -X POST $B/profile/video -F lang=en -F "video=@$D/short.mp4;type=video/mp4"
+VS=$(q "SELECT id FROM guide_videos WHERE guide_id=$NG ORDER BY id DESC LIMIT 1")
+for i in $(seq 1 30); do [ "$(q "SELECT status FROM guide_videos WHERE id=$VS")" != "processing" ] && break; sleep 2; done
+ok "$(q "SELECT status FROM guide_videos WHERE id=$VS")" "failed" "видео короче 30 секунд отклонено автоматически"
+docker compose exec -T worker ffmpeg -v error -f lavfi -i testsrc=size=360x640:rate=15 -f lavfi -i sine=frequency=440 -t 32 -c:v libx264 -c:a aac -f mp4 -movflags frag_keyframe+empty_moov - > $D/ok.mp4
+curl -s -o /dev/null -b $D/ng -c $D/ng -X POST $B/profile/video -F lang=en -F "video=@$D/ok.mp4;type=video/mp4"
+VO=$(q "SELECT id FROM guide_videos WHERE guide_id=$NG ORDER BY id DESC LIMIT 1")
+for i in $(seq 1 60); do [ "$(q "SELECT status FROM guide_videos WHERE id=$VO")" != "processing" ] && break; sleep 2; done
+ok "$(q "SELECT status FROM guide_videos WHERE id=$VO")" "review" "видео 32 с обработано и ждёт модератора"
+VT=$(q "SELECT token FROM guide_videos WHERE id=$VO")
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/media/video/$VT/video.mp4)" "404" "до одобрения видео не видно публично"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/ng $B/media/video/$VT/video.mp4)" "200" "гид видит своё видео на проверке"
+ok "$(post admin /dashboard/video/$VO/approve 'level=conversational')" "303" "модератор одобрил с уровнем"
+ok "$(q "SELECT lang || ':' || level FROM guide_lang_levels WHERE guide_id=$NG")" "en:conversational" "уровень языка подтверждён по видео"
+ok "$(curl -s -o /dev/null -w '%{http_code}' $B/media/video/$VT/preview.mp4)" "200" "превью для наведения доступно"
+ok "$(curl -s "$B/guides?language=en" | grep -c "data-video=\"/media/video/$VT/video.mp4\"")" "1" "в каталоге кнопка видео у гида"
+post ng /profile/video/delete >/dev/null
+ok "$(q "SELECT count(*) FROM guide_lang_levels WHERE guide_id=$NG")" "0" "удалил видео — бейдж языка снят"
+
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

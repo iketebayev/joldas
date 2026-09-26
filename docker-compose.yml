@@ -22,6 +22,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - media:/data/media
     ports:
       - "127.0.0.1:8090:8000"   # локальная отладка
     networks: [internal, n8n_n8n_net]
@@ -36,8 +38,28 @@ services:
       driver: json-file
       options: { max-size: "10m", max-file: "3" }
 
+  worker:
+    build: { context: ., dockerfile: Dockerfile.worker }
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - media:/data/media
+      - hf:/data/hf
+    networks: [internal]
+    deploy:
+      resources:
+        limits: { cpus: "3", memory: 3g }
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
 volumes:
   pgdata:
+  media:
+  hf:
 
 networks:
   internal:

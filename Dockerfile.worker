@@ -1,0 +1,14 @@
+# Фоновая обработка видеовизиток: ffmpeg (перекодирование, постер, превью, громкость)
+# и распознавание речи faster-whisper для субтитров. Отдельно от app, чтобы CPU-нагрузка
+# не тормозила сайт.
+FROM python:3.12-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 HF_HOME=/data/hf
+
+COPY requirements.txt requirements-worker.txt ./
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-worker.txt
+
+COPY app ./app
+CMD ["python", "-m", "app.worker"]

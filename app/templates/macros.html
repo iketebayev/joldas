@@ -31,3 +31,40 @@
 {%- endmacro %}
 
 {% macro initial(name) -%}{{ (name or '?')[0] | upper }}{%- endmacro %}
+
+{# Фото гида после проверки личности, иначе буква. #}
+{% macro avatar(g, cls='') -%}
+  {% if g.photo %}<img class="avatar photo {{ cls }}" src="/media/photo/{{ g.photo }}" alt="" loading="lazy">
+  {% else %}<div class="avatar {{ cls }}">{{ initial(g.name) }}</div>{% endif %}
+{%- endmacro %}
+
+{# Строки для окна с видео: доверие, языки, ставка — через «|». #}
+{% macro vmeta(t, g) -%}
+  {%- set out = [] -%}
+  {%- if g.id_verified_at %}{% set _ = out.append('✓ ' ~ t('kyc.badge')) %}{% endif -%}
+  {%- for x in (g.verified_langs or []) %}{% set p = x.split(':') %}{% set _ = out.append('🎥 ' ~ t('lang.' ~ p[0]) ~ ' · ' ~ t('video.level_' ~ p[1])) %}{% endfor -%}
+  {%- set _ = out.append(t('level.' ~ g.level) ~ ' · ' ~ t('guides.done_n', n=g.completed_count)) -%}
+  {%- if g.day_rate %}{% set _ = out.append(t('guides.from') ~ ' ' ~ ('{:,}'.format(g.day_rate) | replace(',', ' ')) ~ ' ₸ / ' ~ t('common.day')) %}{% endif -%}
+  {{ out | join('|') }}
+{%- endmacro %}
+
+{# Аватар; если есть видеовизитка — кнопка: превью при наведении, по клику — окно с плеером. #}
+{% macro media(t, g, cls='') -%}
+  {% if g.video_token %}
+    <button type="button" class="vthumb {{ cls }}" aria-label="{{ t('video.play', name=g.name) }}"
+      data-video="/media/video/{{ g.video_token }}/video.mp4" data-poster="/media/video/{{ g.video_token }}/poster.jpg"
+      data-preview="/media/video/{{ g.video_token }}/preview.mp4" data-subs="{{ (g.video_subs or []) | join(',') }}"
+      data-base="/media/video/{{ g.video_token }}/subs/" data-lang="{{ g.video_lang }}"
+      data-name="{{ g.name }}" data-guide="{{ g.id }}" data-meta="{{ vmeta(t, g) }}">
+      {{ avatar(g, cls) }}<span class="play" aria-hidden="true">▶</span>
+    </button>
+  {% else %}{{ avatar(g, cls) }}{% endif %}
+{%- endmacro %}
+
+{# Бейджи доверия: личность подтверждена, уровень языка по видео. #}
+{% macro trust(t, g) -%}
+  {% if g.id_verified_at %}<span class="badge verified" title="{{ t('kyc.badge_hint') }}">✓ {{ t('kyc.badge') }}</span>{% endif %}
+  {% for x in (g.verified_langs or []) %}{% set p = x.split(':') %}
+    <span class="badge vlang" title="{{ t('video.badge_hint') }}">🎥 {{ t('lang.' ~ p[0]) }} · {{ t('video.level_' ~ p[1]) }}</span>
+  {% endfor %}
+{%- endmacro %}

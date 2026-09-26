@@ -1,0 +1,69 @@
+{# Окно просмотра видеовизитки: плеер с субтитрами и быстрые действия. #}
+<dialog id="vmodal" class="vmodal" aria-labelledby="vm-name">
+  <div class="vm-body">
+    <video id="vm-video" controls playsinline preload="metadata" crossorigin="anonymous"></video>
+    <div class="vm-side">
+      <div class="row between"><b id="vm-name"></b>
+        <button type="button" class="linkbtn" data-close aria-label="{{ t('common.close') }}">✕</button></div>
+      <ul class="vm-meta" id="vm-meta"></ul>
+      <p class="small muted" id="vm-note">{{ t('video.subs_note') }}</p>
+      <div class="vm-actions">
+        <a class="btn" id="vm-book" href="/requests/new">{{ t('video.book') }}</a>
+        <a class="btn ghost" id="vm-ask" href="#">💬 {{ t('contact.ask_guide') }}</a>
+        <a class="btn ghost" id="vm-profile" href="#">{{ t('video.open_profile') }}</a>
+      </div>
+    </div>
+  </div>
+</dialog>
+<script>
+(function () {
+  const LANGS = {{ lang_names | tojson }};
+  const UI = {{ lang | tojson }};
+  const dlg = document.getElementById("vmodal"), vid = document.getElementById("vm-video");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function open(b) {
+    vid.innerHTML = "";
+    vid.poster = b.dataset.poster; vid.src = b.dataset.video;
+    const subs = b.dataset.subs ? b.dataset.subs.split(",") : [];
+    // Субтитры: на языке интерфейса, иначе английские, если говорят не по-английски.
+    const want = subs.includes(UI) ? UI : (subs.includes("en") && b.dataset.lang !== "en" ? "en" : null);
+    subs.forEach((l) => {
+      const tr = document.createElement("track");
+      tr.kind = "subtitles"; tr.srclang = l; tr.label = LANGS[l] || l; tr.src = b.dataset.base + l + ".vtt";
+      if (l === want) tr.default = true;
+      vid.appendChild(tr);
+    });
+    document.getElementById("vm-name").textContent = b.dataset.name;
+    const meta = document.getElementById("vm-meta"); meta.innerHTML = "";
+    (b.dataset.meta || "").split("|").filter(Boolean).forEach((x) => {
+      const li = document.createElement("li"); li.textContent = x; meta.appendChild(li);
+    });
+    document.getElementById("vm-ask").href = "/guides/" + b.dataset.guide + "#contact";
+    document.getElementById("vm-profile").href = "/guides/" + b.dataset.guide;
+    document.getElementById("vm-profile").hidden = location.pathname === "/guides/" + b.dataset.guide;
+    dlg.showModal();
+    vid.play().catch(() => {});
+  }
+  function close() { vid.pause(); vid.removeAttribute("src"); vid.load(); dlg.close(); }
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest(".vthumb");
+    if (b) { e.preventDefault(); open(b); return; }
+    if (e.target.closest("[data-close]") || e.target === dlg) close();
+  });
+  dlg.addEventListener("cancel", (e) => { e.preventDefault(); close(); });
+  // Превью при наведении: короткий ролик без звука на месте аватара.
+  if (!reduce && matchMedia("(hover: hover)").matches) {
+    document.querySelectorAll(".vthumb:not(.vcard)").forEach((b) => {
+      const host = b.closest(".guide-card") || b;
+      let pv;
+      host.addEventListener("mouseenter", () => {
+        pv = document.createElement("video");
+        Object.assign(pv, { src: b.dataset.preview, muted: true, loop: true, playsInline: true, autoplay: true });
+        pv.className = "avatar pv " + (b.querySelector(".avatar").classList.contains("big") ? "big" : "");
+        b.appendChild(pv);
+      });
+      host.addEventListener("mouseleave", () => { if (pv) pv.remove(); });
+    });
+  }
+})();
+</script>

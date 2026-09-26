@@ -274,3 +274,66 @@ CREATE TABLE IF NOT EXISTS contact_clicks (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS contact_clicks_created ON contact_clicks (created_at);
+
+-- Верификация личности гида. Сканы документа и селфи хранятся зашифрованными и удаляются
+-- сразу после решения модератора (или через 30 дней без решения) — остаётся только статус.
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS id_verified_at TIMESTAMPTZ;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS photo TEXT;        -- одобренное фото профиля
+
+CREATE TABLE IF NOT EXISTS guide_kyc (
+    id            SERIAL PRIMARY KEY,
+    guide_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status        TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
+    doc_type      TEXT NOT NULL CHECK (doc_type IN ('id_card','passport')),
+    doc_file      TEXT,              -- зашифрованный файл; NULL после удаления
+    selfie_files  TEXT[],            -- кадры живого селфи с заданиями; NULL после удаления
+    challenges    TEXT[] NOT NULL,   -- какие задания выпали (жесты), по порядку кадров
+    photo_file    TEXT,              -- кандидат в фото профиля
+    consent_at    TIMESTAMPTZ NOT NULL,
+    checks        TEXT[] NOT NULL DEFAULT '{}',   -- что подтвердил модератор
+    reject_reason TEXT,
+    reviewer_id   INT REFERENCES users(id),
+    reviewed_at   TIMESTAMPTZ,
+    purged_at     TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS guide_kyc_guide ON guide_kyc (guide_id, created_at DESC);
+
+-- Видеовизитка: загрузка → обработка воркером (перекодирование, постер, превью, громкость,
+-- распознавание языка и субтитры) → модерация с оценкой уровня языка → показ.
+CREATE TABLE IF NOT EXISTS guide_videos (
+    id            SERIAL PRIMARY KEY,
+    guide_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token         TEXT NOT NULL UNIQUE,       -- имя папки с файлами
+    lang          TEXT NOT NULL,              -- заявленный язык визитки
+    status        TEXT NOT NULL DEFAULT 'processing'
+                  CHECK (status IN ('processing','review','approved','rejected','failed','replaced')),
+    duration      REAL,
+    size_bytes    BIGINT,
+    mean_volume   REAL,                       -- дБ, для проверки звука
+    speech_ratio  REAL,                       -- доля времени с речью
+    detected_lang TEXT,
+    detected_prob REAL,
+    subtitles     JSONB NOT NULL DEFAULT '{}',  -- {"fr": "WEBVTT…", "en": "WEBVTT…"}
+    level         TEXT CHECK (level IN ('fluent','conversational','basic')),
+    error         TEXT,
+    reject_reason TEXT,
+    reviewer_id   INT REFERENCES users(id),
+    reviewed_at   TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS guide_videos_guide ON guide_videos (guide_id, created_at DESC);
+
+-- Подтверждённый по видео уровень языка: бейдж «English · Fluent · видео».
+CREATE TABLE IF NOT EXISTS guide_lang_levels (
+    guide_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    lang        TEXT NOT NULL,
+    level       TEXT NOT NULL CHECK (level IN ('fluent','conversational','basic')),
+    video_id    INT REFERENCES guide_videos(id) ON DELETE SET NULL,
+    verified_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (guide_id, lang)
+);
+
+-- Демо-гиды из сида считаются прошедшими проверку, иначе демо-сценарии встанут.
+UPDATE guides g SET id_verified_at = now()
+FROM users u WHERE u.id = g.user_id AND u.is_demo AND g.id_verified_at IS NULL;

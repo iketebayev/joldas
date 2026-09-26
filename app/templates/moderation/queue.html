@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ t('mod.title') }}{% endblock %}
+{% block content %}
+<div class="row between"><h1>{{ t('mod.title') }}</h1><a href="/dashboard">← {{ t('nav.dashboard') }}</a></div>
+<p class="muted">{{ t('mod.lead') }}</p>
+
+<h2>{{ t('mod.kyc_queue') }}</h2>
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th>{{ t('mod.col_guide') }}</th><th>{{ t('mod.col_doc') }}</th><th>{{ t('mod.col_sent') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for k in kyc %}
+      <tr><td><b>{{ k.name }}</b></td><td>{{ t('kyc.doc_' ~ k.doc_type) }}</td>
+        <td>{{ k.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+        <td class="num"><a class="btn small" href="/dashboard/kyc/{{ k.id }}">{{ t('mod.review') }}</a></td></tr>
+    {% else %}<tr><td colspan="4" class="muted">{{ t('mod.empty') }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>{{ t('mod.video_queue') }}</h2>
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th>{{ t('mod.col_guide') }}</th><th>{{ t('video.lang') }}</th><th>{{ t('mod.col_sent') }}</th><th></th></tr></thead>
+    <tbody>
+    {% for v in vids %}
+      <tr><td><b>{{ v.name }}</b></td><td>{{ t('lang.' ~ v.lang) }}</td>
+        <td>{{ v.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+        <td class="num">{% if v.status == 'processing' %}<span class="small muted">{{ t('video.st_processing') }}</span>
+          {% else %}<a class="btn small" href="/dashboard/video/{{ v.id }}">{{ t('mod.review') }}</a>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">{{ t('mod.empty') }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2>{{ t('mod.history') }}</h2>
+<div class="card table-wrap">
+  <table class="data">
+    <tbody>
+    {% for d in done %}
+      <tr><td>{{ d.reviewed_at.strftime('%d.%m.%Y %H:%M') }}</td><td><b>{{ d.name }}</b></td>
+        <td>{{ t('mod.kind_' ~ d.kind) }}</td>
+        <td>{% if d.status == 'approved' %}<span class="badge verified">✓ {{ t('mod.st_approved') }}</span>{% if d.level %} · {{ t('video.level_' ~ d.level) }}{% endif %}
+            {% elif d.status == 'replaced' %}<span class="badge">{{ t('mod.st_replaced') }}</span>
+            {% else %}<span class="badge st-cancelled">{{ t('mod.st_rejected') }}</span>{% if d.reason %} · {{ t(('kyc.reason_' if d.kind == 'kyc' else 'video.reason_') ~ d.reason) }}{% endif %}{% endif %}</td></tr>
+    {% else %}<tr><td class="muted">{{ t('mod.empty') }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

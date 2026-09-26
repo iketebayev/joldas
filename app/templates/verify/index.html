@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('kyc.title') }}{% endblock %}
+{% block content %}
+<div class="row between"><h1>{{ t('kyc.title') }}</h1><a href="/profile">← {{ t('nav.profile') }}</a></div>
+<p class="muted">{{ t('kyc.lead') }}</p>
+
+{% if kyc and kyc.status == 'approved' %}
+  <div class="card row" style="gap:16px">
+    {{ m.avatar({'photo': g.photo, 'name': user.name}, 'big') }}
+    <div><span class="badge verified">✓ {{ t('kyc.badge') }}</span>
+      <div class="small" style="margin-top:6px">{{ t('kyc.approved_on', date=kyc.reviewed_at.strftime('%d.%m.%Y')) }}</div>
+      <div class="small muted">{{ t('kyc.purged_on', date=kyc.purged_at.strftime('%d.%m.%Y')) }}</div></div>
+  </div>
+  <p style="margin-top:16px"><a class="btn" href="/profile/video">🎥 {{ t('video.cta') }}</a></p>
+{% elif g.id_verified_at %}
+  <div class="card"><span class="badge verified">✓ {{ t('kyc.badge') }}</span></div>
+{% elif kyc and kyc.status == 'pending' %}
+  <div class="card row" style="gap:16px">
+    <img class="avatar big photo" src="/media/photo/{{ kyc.photo_file }}" alt="">
+    <div><b>{{ t('kyc.pending_title') }}</b>
+      <div class="small">{{ t('kyc.pending_text', date=kyc.created_at.strftime('%d.%m.%Y %H:%M')) }}</div></div>
+  </div>
+{% else %}
+  {% if kyc and kyc.status == 'rejected' %}
+    <div class="flash error">{{ t('kyc.rejected_title') }}: {{ t('kyc.reason_' ~ kyc.reject_reason) }}. {{ t('kyc.try_again') }}</div>
+  {% endif %}
+  <form id="kycform" class="card osteps" method="post" action="/verify" enctype="multipart/form-data">
+    <div class="ostep">
+      <h3 style="margin-top:0">{{ t('kyc.s_consent') }}</h3>
+      <ul class="small" style="margin:0 0 8px;padding-left:18px">
+        <li>{{ t('kyc.pd_what') }}</li><li>{{ t('kyc.pd_who') }}</li>
+        <li>{{ t('kyc.pd_keep') }}</li><li>{{ t('kyc.pd_law') }}</li>
+      </ul>
+      <label class="checks"><span><input type="checkbox" name="consent" value="1" required> {{ t('kyc.consent') }}</span></label>
+    </div>
+
+    <div class="ostep">
+      <h3 style="margin-top:0">{{ t('kyc.s_doc') }}</h3>
+      <div class="checks">{% for d in doc_types %}
+        <label><input type="radio" name="doc_type" value="{{ d }}" {{ 'checked' if loop.first }}> {{ t('kyc.doc_' ~ d) }}</label>{% endfor %}</div>
+      <input type="file" name="doc" accept="image/*" capture="environment" required style="margin-top:10px">
+      <div class="hint">{{ t('kyc.doc_hint', mb=photo_max) }}</div>
+    </div>
+
+    <div class="ostep">
+      <h3 style="margin-top:0">{{ t('kyc.s_live') }}</h3>
+      <p class="small muted" style="margin-top:0">{{ t('kyc.live_hint') }}</p>
+      <div class="cam" id="cam" hidden><video id="camv" playsinline muted autoplay></video><div class="cue" id="cue"></div></div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <button type="button" class="btn small ghost" id="camon">📷 {{ t('kyc.cam_on') }}</button>
+        <button type="button" class="btn small" id="snap" hidden>{{ t('kyc.snap') }}</button>
+        <button type="button" class="linkbtn small" id="retake" hidden>{{ t('kyc.retake') }}</button>
+      </div>
+      <div class="shots" id="shots"></div>
+      <div class="hint" id="camerr" hidden>{{ t('kyc.cam_error') }}</div>
+    </div>
+
+    <div class="ostep">
+      <h3 style="margin-top:0">{{ t('kyc.s_photo') }}</h3>
+      <input type="file" name="photo" accept="image/*" required>
+      <div class="hint">{{ t('kyc.photo_hint') }}</div>
+    </div>
+
+    <div><button class="btn" id="send">{{ t('kyc.submit') }}</button>
+      <span class="small muted" id="sending" hidden>{{ t('kyc.sending') }}</span></div>
+  </form>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if not g.id_verified_at and not (kyc and kyc.status in ('pending', 'approved')) %}
+<script>
+(function () {
+  // Живое селфи: кадры снимаются только с камеры (загрузить файл нельзя), по заданиям сервера.
+  const CUES = {{ challenges | map('string') | list | tojson }}.map((c) => ({{ {'palm': t('kyc.ch_palm'), 'two_fingers': t('kyc.ch_two_fingers'), 'thumb_up': t('kyc.ch_thumb_up'), 'turn_left': t('kyc.ch_turn_left'), 'turn_right': t('kyc.ch_turn_right'), 'touch_ear': t('kyc.ch_touch_ear')} | tojson }})[c]);
+  const STEP = {{ t('kyc.cue_n') | tojson }};
+  const NEED = {{ t('kyc.need_selfies') | tojson }};
+  const v = document.getElementById("camv"), cam = document.getElementById("cam"), cue = document.getElementById("cue");
+  const snap = document.getElementById("snap"), retake = document.getElementById("retake"), shots = document.getElementById("shots");
+  const blobs = [];
+  function show() {
+    const i = blobs.length;
+    cue.textContent = i < CUES.length ? STEP.replace("{i}", i + 1).replace("{n}", CUES.length) + " " + CUES[i] : "✓";
+    snap.hidden = i >= CUES.length; retake.hidden = i === 0;
+  }
+  document.getElementById("camon").onclick = async () => {
+    try {
+      v.srcObject = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: 1280 }, audio: false });
+      cam.hidden = false; document.getElementById("camon").hidden = true; show();
+    } catch (e) { document.getElementById("camerr").hidden = false; }
+  };
+  snap.onclick = () => {
+    const c = document.createElement("canvas");
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d").drawImage(v, 0, 0);
+    c.toBlob((b) => {
+      blobs.push(b);
+      const img = new Image(); img.src = URL.createObjectURL(b); img.alt = CUES[blobs.length - 1]; shots.appendChild(img);
+      show();
+    }, "image/jpeg", 0.9);
+  };
+  retake.onclick = () => { blobs.pop(); shots.lastChild && shots.lastChild.remove(); show(); };
+  document.getElementById("kycform").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (blobs.length < CUES.length) { alert(NEED); return; }
+    const fd = new FormData(e.target);
+    blobs.forEach((b, i) => fd.append("selfie_" + i, b, "selfie_" + i + ".jpg"));
+    document.getElementById("send").disabled = true; document.getElementById("sending").hidden = false;
+    const r = await fetch("/verify", { method: "POST", body: fd });
+    if (v.srcObject) v.srcObject.getTracks().forEach((t) => t.stop());
+    location.href = r.url || "/verify";
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
