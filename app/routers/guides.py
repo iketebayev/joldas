@@ -6,7 +6,7 @@ from ..auth import current_user, require_user
 from ..config import (ADDON_KINDS, CALENDAR_DAYS, CHANNELS, CONTACT_REDIRECT_URL, DIRECT_MAX_DAYS, GUIDE_LANGS,
                       KYC_REQUIRED, SPECIALIZATIONS)
 from ..db import pool
-from ..services import booking, contact, orders
+from ..services import booking, contact, funnel, orders
 from ..web import flash, lang_of, redirect, render
 
 router = APIRouter()
@@ -88,6 +88,8 @@ async def profile(request: Request, guide_id: int):
     )
     sites = [s for s in await all_sites() if s["id"] in g["site_ids"]]
     user = await current_user(request)
+    if not user or user["id"] != guide_id:
+        await funnel.track(request, "view", guide_id)
     # Контакты — только клиенту с оплаченным депозитом по брони у этого гида.
     unlocked = contacts = None
     if user:
@@ -144,6 +146,7 @@ async def book(request: Request, guide_id: int):
             )
             addon_ids = [int(x) for x in form.getlist("addon_ids") if str(x).isdigit()]
             await orders.choose_offer(conn, user, oid, addon_ids)
+            await funnel.track(request, "booking", guide_id, conn)
     except HTTPException as e:
         if e.status_code == 409:
             flash(request, "book.busy", "error")

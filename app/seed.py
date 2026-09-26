@@ -388,8 +388,21 @@ async def seed(reset: bool) -> None:
         for r in levels:
             print(f"  {r['name']:<24} {str(r['rating']):>5}  отзывов {r['reviews_count']:>2}  "
                   f"заказов {r['completed_count']:>2}  {r['level']}")
+        await _analytics(conn)
     await close_pool()
     print("Готово. Демо-вход: admin@demo.kz, company@demo.kz, guide@demo.kz, tourist@demo.kz; пароль из DEMO_PASSWORD")
+
+
+async def _analytics(conn) -> None:
+    """Аккаунты аналитики и демо-брони для дашбордов. Схема применяется повторно — она дозаполняет
+    суммы и статусы только что созданных броней (депозит 10%, остаток 90%, проверка демо-гидов)."""
+    from pathlib import Path
+    from . import seed_analytics
+    await conn.execute((Path(__file__).parent / "schema.sql").read_text(encoding="utf-8"))
+    await seed_analytics.accounts(conn)
+    await seed_analytics.backfill(conn)
+    await seed_analytics.generate(conn, random.Random(2026))
+    await rating.recompute_all(conn)
 
 
 if __name__ == "__main__":

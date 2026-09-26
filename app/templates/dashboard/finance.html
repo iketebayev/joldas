@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% import "dashboard/_analytics_macros.html" as a %}
+{% block title %}{{ t('fin.title') }}{% endblock %}
+{% block content %}
+{% set c = d.cur %}
+<div class="row between" style="align-items:flex-end;gap:12px;flex-wrap:wrap">
+  <div><h1 style="margin-bottom:4px">{{ t('fin.title') }}</h1>
+    <p class="muted" style="margin:0">{{ t('fin.lead') }}</p></div>
+  {{ a.periods_bar(t, periods, d.period, '/dashboard/finance') }}
+</div>
+<p class="small muted">{{ t('an.range', start=d.start.strftime('%d.%m.%Y'), end=d.end.strftime('%d.%m.%Y')) }}</p>
+
+<div class="kpis an-kpis">
+  <div class="card kpi"><div class="l">{{ t('fin.k_net') }}</div><div class="v">{{ money(c.net) }}</div>
+    <div class="s">{{ a.usd(c.net, d.usd) }}</div>{{ a.delta(t, d.trend.net) }}
+    <div class="hint">{{ t('fin.k_net_hint', dep=money(c.deposits), ref=money(c.refunds), acq=money(c.acquiring), pct=d.acquiring_pct) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_take') }}</div><div class="v">{{ '%.1f' | format(c.take_nominal) }}%</div>
+    <div class="hint">{{ t('fin.k_take_hint', eff=('%.1f' | format(c.take_effective)) if c.take_effective is not none else '—') }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_aov') }}</div><div class="v">{{ money(c.aov) }}</div>
+    <div class="s">{{ a.usd(c.aov, d.usd) }}</div>{{ a.delta(t, d.trend.aov) }}
+    <div class="hint">{{ t('fin.k_arpu', v=money(c.arpu_guide), n=c.guides) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_pending') }}</div><div class="v">{{ money(d.pending.held) }}</div>
+    <div class="hint">{{ t('fin.k_pending_hint', n=d.pending.n, ref=money(d.pending.refundable)) }}</div></div>
+</div>
+<div class="kpis an-kpis small-kpis" style="margin-top:12px">
+  <div class="card kpi"><div class="l">GMV</div><div class="v">{{ money(c.gmv) }}</div>{{ a.delta(t, d.trend.gmv) }}</div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_bookings') }}</div><div class="v">{{ c.bookings }}</div>{{ a.delta(t, d.trend.bookings) }}</div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_cr') }}</div><div class="v">{{ ('%.1f' | format(c.cr)) ~ '%' if c.cr is not none else '—' }}</div>
+    <div class="hint">{{ t('fin.k_cr_hint', paid=c.created_paid, created=c.created) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('fin.k_subs') }}</div><div class="v">{{ money(c.subs) }}</div>
+    <div class="hint">{{ t('fin.k_subs_hint') }}</div></div>
+</div>
+
+<div class="row between" style="margin-top:24px;flex-wrap:wrap;gap:8px">
+  <h2 style="margin:0">{{ t('fin.chart_title_' ~ d.step) }}</h2>
+  <div class="region-pills" role="group" aria-label="{{ t('fin.currency') }}">
+    <a href="#" data-cur="KZT" class="on">₸ KZT</a><a href="#" data-cur="USD">$ USD</a></div>
+</div>
+<div class="card"><div style="position:relative;height:280px"><canvas id="rev" aria-label="{{ t('fin.chart_title_' ~ d.step) }}"></canvas></div>
+  {% if not d.series %}<p class="muted small">{{ t('an.empty') }}</p>{% endif %}
+  <p class="hint">{{ t('fin.chart_hint') }}</p></div>
+
+<div class="grid g2" style="margin-top:16px;align-items:start">
+  <div>
+    <h2>{{ t('fin.funnel_title') }}</h2>
+    <div class="card">
+      {% set top = d.funnel[0][1] %}
+      {% for k, n in d.funnel %}
+        {% set prev_n = d.funnel[loop.index0 - 1][1] if not loop.first else none %}
+        <div class="fstep">
+          <div class="row between small"><b>{{ t('fin.f_' ~ k) }}</b>
+            <span>{{ n }}{% if prev_n %} · <span class="muted">{{ '%.0f' | format(n / prev_n * 100) }}% {{ t('fin.f_of_prev') }}</span>{% endif %}</span></div>
+          <div class="fbar"><i style="width:{{ (n / top * 100) if top else 0 }}%"></i></div>
+        </div>
+      {% endfor %}
+      <p class="hint">{{ t('fin.funnel_hint') }}</p>
+    </div>
+  </div>
+  <div>
+    <h2>{{ t('fin.by_currency') }}</h2>
+    <div class="card table-wrap"><table class="data">
+      <thead><tr><th>{{ t('fin.col_client_cur') }}</th><th class="num">{{ t('fin.col_n') }}</th><th class="num">{{ t('fin.col_revenue') }}</th><th class="num">GMV</th></tr></thead>
+      <tbody>{% for r in d.by_currency %}<tr><td><b>{{ r.currency }}</b></td><td class="num">{{ r.n }}</td><td class="num">{{ money(r.deposits) }}</td><td class="num">{{ money(r.gmv) }}</td></tr>
+      {% else %}<tr><td colspan="4" class="muted">{{ t('an.empty') }}</td></tr>{% endfor %}</tbody></table>
+      <p class="hint">{{ t('fin.by_currency_hint') }}</p></div>
+  </div>
+</div>
+
+<h2>{{ t('fin.tx_title') }}</h2>
+<div class="card table-wrap">
+  <table class="data">
+    <thead><tr><th>{{ t('fin.col_id') }}</th><th>{{ t('fin.col_tourist') }}</th><th>{{ t('fin.col_guide') }}</th>
+      <th class="num">{{ t('fin.col_total') }}</th><th class="num">{{ t('fin.col_deposit') }}</th><th>{{ t('fin.col_acq') }}</th><th>{{ t('fin.col_date') }}</th></tr></thead>
+    <tbody>
+    {% for x in d.tx %}
+      <tr><td><b>{{ x.voucher_code or ("#" ~ x.id) }}</b></td>
+        <td>{{ x.tourist }}</td><td>{{ x.guide }}</td>
+        <td class="num">{{ money(x.total) }}</td><td class="num"><b>{{ money(x.deposit_amount) }}</b></td>
+        <td>{% if x.refund %}<span class="badge st-cancelled">{{ t('fin.acq_refunded') }}</span>
+            {% else %}<span class="badge verified">{{ t('fin.acq_' ~ (x.acq or 'paid_test')) }}</span>{% endif %}</td>
+        <td class="small">{{ x.deposit_paid_at.strftime('%d.%m.%Y %H:%M') }}</td></tr>
+    {% else %}<tr><td colspan="7" class="muted">{{ t('an.empty') }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  const S = {{ d.series | tojson }}, USD = {{ (d.usd or 0) | tojson }}, STEP = {{ d.step | tojson }};
+  const LOC = {{ {'kk': 'kk-KZ', 'ru': 'ru-RU', 'en': 'en-GB'}[lang] | tojson }};
+  const LBL = {{ t('fin.col_revenue') | tojson }};
+  const labels = S.map((x) => new Date(x.d + "T00:00:00").toLocaleDateString(LOC, STEP === "month" ? { month: "short", year: "2-digit" } : { day: "numeric", month: "short" }));
+  let cur = "KZT";
+  const fmt = (v) => cur === "USD" ? "$" + Math.round(v).toLocaleString("en-US") : Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸";
+  const data = () => S.map((x) => cur === "USD" && USD ? x.deposits / USD : x.deposits);
+  const css = getComputedStyle(document.documentElement);
+  const color = css.getPropertyValue("--series-1").trim() || "#2a78d6";
+  const chart = new Chart(document.getElementById("rev"), {
+    // Дни — столбики (оплаты дискретные, крупные экспедиции дают пики), месяцы — линия тренда.
+    type: STEP === "day" ? "bar" : "line",
+    data: { labels, datasets: [{ label: LBL, data: data(), borderColor: color,
+      backgroundColor: STEP === "day" ? color : color + "22", fill: STEP !== "day", tension: 0.2, pointRadius: 3 }] },
+    options: { animation: false, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => fmt(c.parsed.y) + " · " + S[c.dataIndex].n } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: (v) => fmt(v) } }, x: { ticks: { maxTicksLimit: 12 } } } },
+  });
+  document.querySelectorAll("[data-cur]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault(); cur = a.dataset.cur;
+    document.querySelectorAll("[data-cur]").forEach((b) => b.classList.toggle("on", b === a));
+    chart.data.datasets[0].data = data(); chart.update();
+  }));
+})();
+</script>
+{% endblock %}

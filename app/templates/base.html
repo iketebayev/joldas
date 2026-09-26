@@ -19,7 +19,13 @@
         <a href="/hotels" class="{{ 'on' if request.url.path == '/hotels' }}">{{ t('nav.hotels') }}</a>{% endif %}
       {% if user %}
         {% if user.role == 'admin' %}
-          <a href="/dashboard" class="{{ 'on' if request.url.path.startswith('/dashboard') }}">{{ t('nav.dashboard') }}</a>
+          <a href="/dashboard" class="{{ 'on' if request.url.path == '/dashboard' or request.url.path.startswith('/dashboard/verify') }}">{{ t('nav.dashboard') }}</a>
+          <a href="/dashboard/finance" class="{{ 'on' if request.url.path == '/dashboard/finance' }}">{{ t('nav.finance') }}</a>
+          <a href="/dashboard/gov" class="{{ 'on' if request.url.path == '/dashboard/gov' }}">{{ t('nav.gov') }}</a>
+        {% elif user.role == 'finance_admin' %}
+          <a href="/dashboard/finance" class="on">{{ t('nav.finance') }}</a>
+        {% elif user.role == 'gov_observer' %}
+          <a href="/dashboard/gov" class="on">{{ t('nav.gov') }}</a>
         {% elif user.role == 'guide' %}
           <a href="/requests" class="{{ 'on' if request.url.path.startswith('/requests') }}">{{ t('nav.feed') }}</a>
           <a href="/profile" class="{{ 'on' if request.url.path == '/profile' }}">{{ t('nav.profile') }}</a>
@@ -31,7 +37,7 @@
       {% if not user or user.role in ('guide', 'admin') %}
         <a href="/academy" class="{{ 'on' if request.url.path.startswith('/academy') }}">{{ t('nav.academy') }}</a>
       {% endif %}
-      <a href="/pricing" class="{{ 'on' if request.url.path == '/pricing' }}">{{ t('nav.pricing') }}</a>
+      {% if not user or user.role not in ('finance_admin', 'gov_observer') %}<a href="/pricing" class="{{ 'on' if request.url.path == '/pricing' }}">{{ t('nav.pricing') }}</a>{% endif %}
     </nav>
     <div class="langs" aria-label="Language">
       {% for l in ui_langs %}<a href="/lang/{{ l }}" class="{{ 'on' if l == lang }}">{{ {'kk':'ҚАЗ','ru':'РУС','en':'ENG'}[l] }}</a>{% endfor %}

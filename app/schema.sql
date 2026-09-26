@@ -360,3 +360,19 @@ UPDATE assignments a SET contacts_unlocked = TRUE,
 WHERE a.status IN ('confirmed','done') AND NOT a.contacts_unlocked AND a.voucher_code IS NULL;
 UPDATE assignments SET voucher_code = 'JL-' || upper(substr(md5(id::text || created_at::text), 1, 6))
 WHERE contacts_unlocked AND voucher_code IS NULL;
+
+-- Роли аналитики: финансовый админ (P&L площадки) и госнаблюдатель (макропоказатели региона).
+ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE users ADD CONSTRAINT users_role_check
+    CHECK (role IN ('guide','company','tourist','admin','finance_admin','gov_observer'));
+
+-- Воронка прямой брони: просмотр карточки → выбор даты → бронь → оплата депозита.
+CREATE TABLE IF NOT EXISTS funnel_events (
+    id         BIGSERIAL PRIMARY KEY,
+    kind       TEXT NOT NULL CHECK (kind IN ('view','date','booking','paid')),
+    guide_id   INT REFERENCES users(id) ON DELETE CASCADE,
+    visitor    TEXT NOT NULL,          -- id посетителя из сессии (не персональные данные)
+    is_demo    BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS funnel_events_created ON funnel_events (created_at);

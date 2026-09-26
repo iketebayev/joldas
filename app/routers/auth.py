@@ -21,6 +21,9 @@ def normalize_phone(raw: str | None) -> str | None:
     return "+" + digits
 
 
+ROLE_HOME = {"finance_admin": "/dashboard/finance", "gov_observer": "/dashboard/gov"}
+
+
 def safe_next(url: str | None) -> str:
     return url if url and url.startswith("/") and not url.startswith("//") else "/requests"
 
@@ -41,7 +44,10 @@ async def login(request: Request, login: str = Form(...), password: str = Form(.
         flash(request, "auth.bad_login", "error")
         return redirect(f"/login?next={safe_next(next)}")
     request.session["uid"] = user["id"]
-    resp = redirect(safe_next(next))
+    # Аналитические роли сразу попадают на свой дашборд.
+    home = ROLE_HOME.get(user["role"])
+    target = home if home and not (next or "").startswith(home) else safe_next(next)
+    resp = redirect(target)
     resp.set_cookie("lang", user["ui_lang"], max_age=60 * 60 * 24 * 365, samesite="lax")
     return resp
 

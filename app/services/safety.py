@@ -68,9 +68,15 @@ def brief(req, safety, sites, lang: str) -> dict:
 
 async def purge(conn) -> int:
     cutoff = date.today() - timedelta(days=SAFETY_RETENTION_DAYS)
+    # Здоровье, питание и контакт ICE стираются; страны остаются — это обезличенная статистика
+    # турпотока для акимата, без неё пропадёт география за прошлые месяцы.
     res = await conn.execute(
-        """DELETE FROM request_safety s USING requests r
-           WHERE r.id = s.request_id AND r.date_to < $1""",
+        """UPDATE request_safety s SET diet='{}', risks='{}', epipen=FALSE, ice_name=NULL,
+               ice_phone=NULL, note=NULL
+           FROM requests r
+           WHERE r.id = s.request_id AND r.date_to < $1
+             AND (cardinality(s.diet) > 0 OR cardinality(s.risks) > 0 OR s.epipen
+                  OR s.ice_name IS NOT NULL OR s.ice_phone IS NOT NULL OR s.note IS NOT NULL)""",
         cutoff,
     )
     return int(res.split()[-1])

@@ -163,7 +163,7 @@ echo "17. Акимат: страна видна, здоровье — нет"
 ok "$(curl -s -b $D/admin $B/requests/$SR | grep -c 'Hans Safety')" "0" "админ не видит контакт ЧП"
 ok "$(curl -s -b $D/admin -H "Cookie: lang=ru" $B/dashboard | grep -q 'Германия' && echo yes)" "yes" "страна в дашборде"
 
-echo "18. Удаление анкеты через 30 дней после тура"
+echo "18. Через 30 дней после тура здоровье и ICE стираются, страны остаются для статистики"
 q "UPDATE requests SET date_from=current_date-45, date_to=current_date-44 WHERE id=$SR" >/dev/null
 docker compose exec -T app python -c "
 import asyncio
@@ -173,7 +173,8 @@ async def m():
     await init_pool()
     async with pool().acquire() as c: print(await purge(c))
 asyncio.run(m())" >/dev/null
-ok "$(q "SELECT count(*) FROM request_safety WHERE request_id=$SR")" "0" "анкета удалена"
+ok "$(q "SELECT cardinality(risks) || '/' || (ice_name IS NULL) || '/' || (ice_phone IS NULL) FROM request_safety WHERE request_id=$SR")" "0/true/true" "здоровье и контакт ЧП стёрты"
+ok "$(q "SELECT cardinality(countries) > 0 FROM request_safety WHERE request_id=$SR")" "t" "страны сохранились"
 
 
 echo "19. Маршрут тура: GPX и доступ"
@@ -331,5 +332,43 @@ ok "$(curl -s -o /dev/null -w '%{http_code}' $B/media/video/$VT/preview.mp4)" "2
 ok "$(curl -s "$B/guides?language=en" | grep -c "data-video=\"/media/video/$VT/video.mp4\"")" "1" "в каталоге кнопка видео у гида"
 post ng /profile/video/delete >/dev/null
 ok "$(q "SELECT count(*) FROM guide_lang_levels WHERE guide_id=$NG")" "0" "удалил видео — бейдж языка снят"
+
+echo "— Аналитика: роли, доступы, формулы, выгрузки"
+for who in finance gov; do rm -f $D/$who; done
+ok "$(curl -s -o /dev/null -w '%{redirect_url}' -c $D/finance -b $D/finance -X POST $B/login -d 'login=admin-finance@demo.kz&password=demo1234&next=/requests' | sed 's|^https\?://[^/]*||')" "/dashboard/finance" "финансист после входа — на /dashboard/finance"
+ok "$(curl -s -o /dev/null -w '%{redirect_url}' -c $D/gov -b $D/gov -X POST $B/login -d 'login=admin-gov@demo.kz&password=demo1234' | sed 's|^https\?://[^/]*||')" "/dashboard/gov" "госнаблюдатель после входа — на /dashboard/gov"
+code() { curl -s -o /dev/null -w '%{http_code}' -b "$D/$1" "$B$2"; }
+ok "$(code finance /dashboard/finance)/$(code finance /dashboard/gov)" "200/403" "финансист видит только финансы"
+ok "$(code gov /dashboard/gov)/$(code gov /dashboard/finance)" "200/403" "госнаблюдатель видит только туризм"
+ok "$(code admin /dashboard/finance)/$(code admin /dashboard/gov)" "200/200" "админ видит оба дашборда"
+ok "$(code gov /dashboard)/$(code gov /dashboard/verify)/$(code gov /requests/$BR)" "403/403/403" "госнаблюдателю закрыты операционные разделы и заявки"
+ok "$(code tour /dashboard/finance)/$(code guide /dashboard/gov)" "403/403" "туристу и гиду аналитика закрыта"
+ok "$(curl -s -b $D/gov "$B/dashboard/gov?p=year" | grep -cE 'tel:|@demo\.kz|\+7 000|JL-')" "0" "на странице госнаблюдателя нет имён, контактов и ваучеров"
+ok "$(curl -s -b $D/gov "$B/dashboard/gov/report.xlsx?p=year" | head -c 2)" "PK" "выгрузка Excel"
+ok "$(curl -s -b $D/gov "$B/dashboard/gov/report.pdf?p=year" | head -c 4)" "%PDF" "выгрузка PDF"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/finance "$B/dashboard/gov/report.xlsx")" "403" "финансисту выгрузка акимату закрыта"
+CHECK=$(docker compose exec -T app python -c "
+import asyncio
+from app.db import init_pool, pool
+from app.services import analytics
+async def m():
+    await init_pool(apply_schema=False)
+    db = pool()
+    f = await analytics.finance(db, 'year'); c = f['cur']
+    _, s, e, _ = analytics.window('year')
+    gmv = await db.fetchval(\"SELECT coalesce(sum(total),0) FROM assignments WHERE status IN ('confirmed','done') AND coalesce(deposit_paid_at, created_at) >= \$1 AND coalesce(deposit_paid_at, created_at) < \$2\", s, e)
+    dep = await db.fetchval('SELECT coalesce(sum(deposit_amount),0) FROM assignments a JOIN requests r ON r.id=a.request_id WHERE r.author_type=\'tourist\' AND deposit_paid_at >= \$1 AND deposit_paid_at < \$2', s, e)
+    bad = await db.fetchval(\"SELECT count(*) FROM assignments a JOIN requests r ON r.id=a.request_id WHERE r.author_type='tourist' AND (a.deposit_amount <> round(a.total * 0.10) OR a.balance_to_guide <> a.total - a.deposit_amount)\")
+    g = await analytics.gov(db, 'year')
+    ok = [c['gmv'] == gmv, c['deposits'] == dep, c['aov'] == round(gmv / c['bookings']), bad == 0,
+          c['net'] == c['deposits'] - c['refunds'] - round(c['deposits'] * 0.035),
+          g['cur']['local'] <= g['cur']['gmv'], g['cur']['avg_stay'] == round(g['cur']['tourist_days'] / g['cur']['tourists'], 1)]
+    print(''.join('1' if x else '0' for x in ok))
+asyncio.run(m())")
+ok "$CHECK" "1111111" "формулы: GMV, выручка, AOV, 10/90, чистая выручка, доход гидов, длительность"
+F0=$(q "SELECT count(*) FROM funnel_events WHERE kind='date' AND NOT is_demo")
+curl -s -o /dev/null -A "Mozilla/5.0" -X POST $B/f/date/$BG
+curl -s -o /dev/null -X POST $B/f/date/$BG
+ok "$(( $(q "SELECT count(*) FROM funnel_events WHERE kind='date' AND NOT is_demo") - F0 ))" "1" "выбор даты попал в воронку, запрос бота/скрипта — нет"
 
 [ $FAIL = 0 ] && echo "=== ВСЕ СЦЕНАРИИ ПРОЙДЕНЫ ===" || { echo "=== ЕСТЬ ПРОВАЛЫ ==="; exit 1; }

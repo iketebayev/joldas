@@ -1,0 +1,13 @@
+{# Общие элементы аналитических дашбордов. #}
+{% macro periods_bar(t, periods, cur, base) -%}
+  <nav class="region-pills" aria-label="{{ t('an.period') }}">
+    {% for p in periods %}<a href="{{ base }}?p={{ p }}" class="{{ 'on' if p == cur }}">{{ t('an.p_' ~ p) }}</a>{% endfor %}
+  </nav>
+{%- endmacro %}
+
+{% macro delta(t, v, good_up=True) -%}
+  {% if v is none %}<span class="delta flat">— {{ t('an.no_prev') }}</span>
+  {% else %}<span class="delta {{ 'up' if (v >= 0) == good_up else 'down' }}">{{ '▲' if v >= 0 else '▼' }} {{ '%+.1f' | format(v) }}% <span class="muted">{{ t('an.vs_prev') }}</span></span>{% endif %}
+{%- endmacro %}
+
+{% macro usd(v, rate) -%}{% if rate and v %}${{ '{:,.0f}'.format(v / rate) }}{% endif %}{%- endmacro %}

@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% import "dashboard/_analytics_macros.html" as a %}
+{% block title %}{{ t('gov.title') }}{% endblock %}
+{% block content %}
+{% set c = d.cur %}
+<div class="row between" style="align-items:flex-end;gap:12px;flex-wrap:wrap">
+  <div><h1 style="margin-bottom:4px">{{ t('gov.title') }}</h1>
+    <p class="muted" style="margin:0">{{ t('gov.lead') }}</p></div>
+  {{ a.periods_bar(t, periods, d.period, '/dashboard/gov') }}
+</div>
+<div class="row between" style="flex-wrap:wrap;gap:8px;margin:6px 0 14px">
+  <span class="small muted">{{ t('gov.range', start=d.start.strftime('%d.%m.%Y'), end=d.end.strftime('%d.%m.%Y')) }}</span>
+  <span class="row" style="gap:8px">
+    <a class="btn small" href="/dashboard/gov/report.xlsx?p={{ d.period }}">⬇ {{ t('gov.export_xlsx') }}</a>
+    <a class="btn small ghost" href="/dashboard/gov/report.pdf?p={{ d.period }}">⬇ PDF</a></span>
+</div>
+
+<div class="kpis an-kpis">
+  <div class="card kpi"><div class="l">{{ t('gov.k_gmv') }}</div><div class="v">{{ money(c.gmv) }}</div>
+    <div class="s">{{ a.usd(c.gmv, d.usd) }}</div>{{ a.delta(t, d.trend.gmv) }}</div>
+  <div class="card kpi"><div class="l">{{ t('gov.k_local') }}</div><div class="v">{{ money(c.local) }}</div>
+    <div class="s">{{ a.usd(c.local, d.usd) }}</div>{{ a.delta(t, d.trend.local) }}
+    <div class="hint">{{ t('gov.k_local_hint') }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('gov.k_tourists') }}</div><div class="v">{{ c.tourists }}</div>{{ a.delta(t, d.trend.tourists) }}
+    <div class="hint">{{ t('gov.k_bookings_n', n=c.bookings) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('gov.k_avg_stay') }}</div><div class="v">{{ c.avg_stay }} <span style="font-size:16px">{{ t('gov.days') }}</span></div>{{ a.delta(t, d.trend.avg_stay) }}
+    <div class="hint">{{ t('gov.k_tourist_days_n', n=c.tourist_days) }}</div></div>
+</div>
+
+<h2>{{ t('gov.months_title') }}</h2>
+<div class="card"><div style="position:relative;height:260px"><canvas id="gmv"></canvas></div>
+  <p class="hint">{{ t('gov.months_hint') }}</p></div>
+
+<div class="grid g2" style="margin-top:8px;align-items:start">
+  <div>
+    <h2>{{ t('gov.geo_title') }}</h2>
+    <div class="card">
+      {% set maxp = (d.countries | map(attribute='people') | max) if d.countries else 0 %}
+      {% for r in d.countries %}
+        <div class="hbar"><span class="hl">{{ t('country.' ~ r.country) }}</span>
+          <div class="bar" style="width:{{ (r.people / maxp * 100) | round if maxp else 0 }}%"
+               data-tip="{{ t('country.' ~ r.country) }}: {{ r.people }}"></div><b class="hv">{{ '%g' | format(r.people | float) }}</b></div>
+      {% else %}<p class="muted small">{{ t('an.empty') }}</p>{% endfor %}
+      {% if d.unknown %}<p class="hint">{{ t('gov.unknown_n', n=d.unknown) }}</p>{% endif %}
+    </div>
+  </div>
+  <div>
+    <h2>{{ t('gov.sites_title') }}</h2>
+    <div class="card">
+      {% set maxs = (d.sites | map(attribute='people') | max) if d.sites else 0 %}
+      {% for s in d.sites %}
+        <div class="hbar"><span class="hl">{{ name_of(s) }}</span>
+          <div class="bar" style="width:{{ (s.people / maxs * 100) | round if maxs else 0 }}%"
+               data-tip="{{ name_of(s) }}: {{ s.people }} · {{ t('gov.col_tours') }} {{ s.tours }}"></div><b class="hv">{{ s.people }}</b></div>
+      {% else %}<p class="muted small">{{ t('an.empty') }}</p>{% endfor %}
+    </div>
+  </div>
+</div>
+
+<h2>{{ t('gov.guides_title') }}</h2>
+<div class="kpis an-kpis small-kpis">
+  <div class="card kpi"><div class="l">{{ t('gov.k_active_guides') }}</div><div class="v">{{ d.active }}</div>
+    <div class="hint">{{ t('gov.k_verified_of', n=d.verified) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('gov.k_guide_month') }}</div><div class="v">{{ money(d.guide_month) }}</div>
+    <div class="s">{{ a.usd(d.guide_month, d.usd) }}</div></div>
+  <div class="card kpi"><div class="l">{{ t('gov.k_white') }}</div><div class="v">{{ c.bookings }}</div>
+    <div class="hint">{{ t('gov.k_white_hint') }}</div></div>
+</div>
+<p class="small muted" style="margin-top:14px">{{ t('gov.privacy') }}</p>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  const M = {{ monthly_json | tojson }};
+  const LOC = {{ {'kk': 'kk-KZ', 'ru': 'ru-RU', 'en': 'en-GB'}[lang] | tojson }};
+  const L = {{ {'gmv': 'GMV', 'local': t('gov.k_local')} | tojson }};
+  const css = getComputedStyle(document.documentElement);
+  const c1 = css.getPropertyValue("--series-1").trim() || "#2a78d6";
+  const fmt = (v) => Math.round(v).toLocaleString("ru-RU").replace(/,/g, " ") + " ₸";
+  new Chart(document.getElementById("gmv"), {
+    type: "bar",
+    data: { labels: M.map((x) => new Date(x.m + "T00:00:00").toLocaleDateString(LOC, { month: "short", year: "2-digit" })),
+      datasets: [{ label: L.gmv, data: M.map((x) => x.gmv), backgroundColor: c1 + "55", borderColor: c1, borderWidth: 1 },
+                 { label: L.local, data: M.map((x) => x.local), backgroundColor: c1 }] },
+    options: { animation: false, maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => c.dataset.label + ": " + fmt(c.parsed.y) } } },
+      scales: { y: { beginAtZero: true, ticks: { callback: (v) => fmt(v) } } } },
+  });
+})();
+</script>
+{% endblock %}

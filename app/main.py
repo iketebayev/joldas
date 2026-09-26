@@ -12,7 +12,7 @@ from .auth import LoginRequired
 from .db import close_pool, init_pool, pool
 from .config import RATES_REFRESH_HOURS
 from .services import kyc, rates, safety
-from .routers import academy, account, api, contact, moderation, verify, tours, auth, billing, dashboard, guides, public, requests, reviews
+from .routers import academy, account, analytics, api, contact, moderation, verify, tours, auth, billing, dashboard, guides, public, requests, reviews
 from .web import redirect, render
 
 log = logging.getLogger("app")
@@ -61,7 +61,7 @@ app.add_middleware(
 )
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-for r in (public, auth, account, academy, api, contact, verify, moderation, tours, guides, requests, reviews, billing, dashboard):
+for r in (public, auth, account, academy, api, contact, verify, moderation, analytics, tours, guides, requests, reviews, billing, dashboard):
     app.include_router(r.router)
 
 

@@ -7,7 +7,7 @@ from ..auth import require_user
 from ..config import CURRENCIES, DOMAIN, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
 from ..db import pool
 from .. import academy
-from ..services import booking, fees, orders, rates, route, safety
+from ..services import booking, funnel, fees, orders, rates, route, safety
 from ..services.payments import deposit_for
 from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
@@ -21,6 +21,10 @@ async def index(request: Request):
     db = pool()
     if user["role"] == "admin":
         return redirect("/dashboard")
+    if user["role"] == "finance_admin":
+        return redirect("/dashboard/finance")
+    if user["role"] == "gov_observer":
+        return redirect("/dashboard/gov")
     if user["role"] == "guide":
         g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", user["id"])
         feed = await db.fetch(
@@ -287,6 +291,8 @@ async def pay(request: Request, aid: int):
     a = await load_assignment(aid)
     async with pool().acquire() as conn, conn.transaction():
         await orders.confirm_deposit(conn, user, a)
+        if await conn.fetchval("SELECT direct FROM requests WHERE id=$1", a["request_id"]):
+            await funnel.track(request, "paid", a["guide_id"], conn)
     flash(request, "pay.done")
     return redirect(f"/requests/{a['request_id']}")
 

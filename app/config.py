@@ -84,3 +84,7 @@ PHOTO_MAX_MB = 10
 VIDEO_MAX_MB = 50
 VIDEO_MIN_SEC, VIDEO_MAX_SEC = 30, 60
 VIDEO_LEVELS = ("fluent", "conversational", "basic")
+
+# Финансовая аналитика.
+ACQUIRING_PCT = float(os.getenv("ACQUIRING_PCT", "3.5"))   # комиссия эквайринга с депозита
+ANALYTICS_PERIODS = {"today": 1, "7d": 7, "30d": 30, "quarter": 91, "year": 365}

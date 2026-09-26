@@ -188,7 +188,9 @@
     else { to.value = b.dataset.d; }
     calc();
   });
+  let dateSent = false;
   function calc() {
+    if (f.value && !dateSent) { dateSent = true; navigator.sendBeacon && navigator.sendBeacon("/f/date/{{ g.id }}"); }
     cal.querySelectorAll(".cal-d").forEach((b) => b.classList.toggle("pick", f.value && b.dataset.d >= f.value && b.dataset.d <= (to.value || f.value)));
     const box = document.getElementById("pbox");
     if (!f.value) { box.hidden = true; return; }

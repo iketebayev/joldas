@@ -9,10 +9,11 @@ check() { # jar lang path expect
   if [ "$code" != "$4" ]; then echo "FAIL $2 $3 -> $code (ожидали $4)"; fail=1; fi
   if grep -q "Traceback\|UndefinedError\|jinja2" $T/page.html; then echo "TEMPLATE ERROR $3"; fail=1; fi
   # на сайте не должно быть служебных пометок (демо-логины @demo.kz — не в счёт)
-  if sed 's/[a-z]*@demo\.kz//g' $T/page.html | grep -qiE "демо|пилот|\bMVP\b|тестов|test mode|сынақ"; then echo "ПОМЕТКА на странице $2 $3"; fail=1; fi
+  if sed 's/[a-z]*@demo\.kz//g' $T/page.html | grep -qiE "демо|пилот|\bMVP\b|тестов|test mode|сынақ"; then echo "ПОМЕТКА на странице $2 $3: $(sed "s/[a-z]*@demo\.kz//g" $T/page.html | grep -oiE ".{40}(демо|пилот|MVP|тестов|test mode|сынақ).{20}" | head -1)"; fail=1; fi
 }
 login() { rm -f "$1"; curl -s -o /dev/null -c "$1" -b "$1" -X POST "$B/login" -d "login=$2&password=${DEMO_PASSWORD:-demo1234}&next=/requests"; }
 D=$T
+login $D/fin admin-finance@demo.kz; login $D/gov admin-gov@demo.kz
 login $D/admin admin@demo.kz; login $D/comp company@demo.kz; login $D/guide guide@demo.kz; login $D/tour tourist@demo.kz
 for L in kk ru en; do
   check $D/none $L / 200; check $D/none $L /guides 200; check $D/none $L "/guides?language=zh&level=experienced" 200
@@ -26,6 +27,8 @@ for L in kk ru en; do
   check $D/guide $L /tours/mine 403; check $D/none $L /hotels 200
   check $D/guide $L /verify 200; check $D/guide $L /profile/video 200; check $D/admin $L /dashboard/verify 200
   check $D/none $L "/guides?language=fr" 200; check $D/tour $L /dashboard/verify 403
+  for P in today 7d 30d quarter year; do check $D/fin $L "/dashboard/finance?p=$P" 200; check $D/gov $L "/dashboard/gov?p=$P" 200; done
+  check $D/admin $L /dashboard/finance 200; check $D/fin $L /dashboard/gov 403; check $D/gov $L /dashboard/finance 403
   check $D/guide $L /nonexistent 404
 done
 # детальная заявка каждой роли
