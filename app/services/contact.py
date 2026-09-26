@@ -7,12 +7,13 @@ from ..db import pool
 
 REGIONS = ("west", "cn", "cis")
 
-# Приветствие в WhatsApp. Язык выбирается под туриста, но только тот, на котором говорит гид.
+# Сообщение в WhatsApp после оплаты депозита: номер ваучера и даты, чтобы гид сразу нашёл бронь.
+# Язык — общий для туриста и гида.
 GREETING = {
-    "en": "Hello! Found your profile on {app}. I have a few questions regarding your Mangystau tour...",
-    "ru": "Здравствуйте! Пишу вам с {app} — есть несколько вопросов по туру в Мангистау...",
-    "kk": "Сәлеметсіз бе! Профиліңізді {app} сайтынан таптым. Маңғыстау туры бойынша бірнеше сұрағым бар...",
-    "zh": "您好！我在 {app} 上看到了您的主页，想咨询几个关于曼格斯套旅行的问题……",
+    "en": "Hello! I booked your Mangystau tour on {app}. Voucher {code}, {dates}. Looking forward to meeting you!",
+    "ru": "Здравствуйте! У меня бронь тура по Мангистау через {app}: ваучер {code}, {dates}. До встречи!",
+    "kk": "Сәлеметсіз бе! {app} арқылы Маңғыстау турын брондадым. Ваучер {code}, {dates}. Кездескенше!",
+    "zh": "您好！我在 {app} 上预订了您的曼格斯套旅行。凭证 {code}，日期 {dates}。期待与您见面！",
 }
 
 HOTEL_GREETING = {
@@ -42,10 +43,13 @@ def fmt_phone(raw) -> str | None:
     return ("+" + d) if d else None
 
 
-def norm_handle(raw) -> str | None:
-    """@name, instagram.com/name, x.com/name → name."""
+def norm_handle(raw, tg: bool = False) -> str | None:
+    """@name, instagram.com/name, x.com/name, t.me/name → name."""
     s = str(raw or "").strip()
-    s = re.sub(r"^https?://(www\.)?(instagram\.com|x\.com|twitter\.com)/", "", s).strip("/@ ")
+    s = re.sub(r"^https?://(www\.)?(instagram\.com|x\.com|twitter\.com|t\.me)/", "", s).strip("/@ ")
+    if tg:
+        s = s.split("?")[0].split("/")[0]
+        return s if re.fullmatch(r"[A-Za-z0-9_]{5,32}", s) else None
     s = s.split("?")[0].split("/")[0]
     return s if re.fullmatch(r"[A-Za-z0-9_.]{1,30}", s) else None
 
@@ -105,6 +109,7 @@ def channels(g, region: str) -> list[dict]:
         return out
     have = {
         "whatsapp": g["whatsapp"],
+        "telegram": g["telegram"],
         "instagram": g["instagram"],
         "rednote": g["rednote_id"] or g["rednote_link"],
         "x": g["x_handle"],
@@ -116,11 +121,18 @@ def channels(g, region: str) -> list[dict]:
     return out
 
 
-def target_url(g, ch: str, text_lang: str) -> str | None:
+def greeting(text_lang: str, code: str, dates: str) -> str:
+    return GREETING[text_lang].format(app=APP_NAME, code=code, dates=dates)
+
+
+def target_url(g, ch: str, text: str) -> str | None:
+    """Куда ведёт кнопка канала. text — готовое сообщение для WhatsApp."""
     if CONTACT_REDIRECT_URL:
         return CONTACT_REDIRECT_URL if ch in CHANNELS else None
     if ch == "whatsapp" and g["whatsapp"]:
-        return f"https://wa.me/{g['whatsapp']}?text=" + quote(GREETING[text_lang].format(app=APP_NAME))
+        return f"https://wa.me/{g['whatsapp']}?text=" + quote(text)
+    if ch == "telegram" and g["telegram"]:
+        return f"https://t.me/{g['telegram']}"
     if ch == "instagram" and g["instagram"]:
         return f"https://ig.me/m/{g['instagram']}"
     if ch == "x" and g["x_handle"]:

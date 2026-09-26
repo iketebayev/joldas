@@ -13,7 +13,7 @@ async def pay_deposit(conn, assignment) -> None:
     await conn.execute(
         """INSERT INTO payments (kind, assignment_id, amount, status)
            VALUES ('deposit', $1, $2, 'paid_test')""",
-        assignment["id"], deposit_for(assignment["total"]),
+        assignment["id"], assignment["deposit_amount"] or deposit_for(assignment["total"]),
     )
 
 

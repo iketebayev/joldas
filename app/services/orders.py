@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from fastapi import HTTPException
 
 from ..config import CANCEL_REFUND_HOURS, START_PLAN_MONTHLY_REQUESTS
-from . import fees, payments, rating
+from . import booking, fees, payments, rating
 from .notify import notify
 
 AQTAU = timezone(timedelta(hours=5))
@@ -109,13 +109,16 @@ async def choose_offer(conn, owner, offer_id: int, addon_ids: list[int] | None =
         "SELECT s.slug FROM sites s JOIN requests r ON s.id = ANY(r.site_ids) WHERE r.id=$1", offer["request_id"])]
     fee = fees.compute(slugs, offer["group_size"], days)
     status = "awaiting_payment" if offer["author_type"] == "tourist" else "confirmed"
+    deposit, balance = booking.amounts(total, offer["author_type"])
     aid = await conn.fetchval(
         """INSERT INTO assignments (request_id, offer_id, guide_id, client_id,
-               price_per_day, days, total, status, entry_fee)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id""",
+               price_per_day, days, total, status, entry_fee, deposit_amount, balance_to_guide)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id""",
         offer["request_id"], offer_id, offer["guide_id"], owner["id"],
-        offer["price_per_day"], days, total, status, fee["total"] if fee else 0,
+        offer["price_per_day"], days, total, status, fee["total"] if fee else 0, deposit, balance,
     )
+    if status == "confirmed":  # турфирма без депозита: контакты — сразу после подтверждения
+        await booking.unlock(conn, aid, paid=False)
     for a, qty, amount in addons:
         await conn.execute(
             """INSERT INTO assignment_addons (assignment_id, addon_id, kind, price, per, qty, amount)
@@ -141,6 +144,7 @@ async def confirm_deposit(conn, owner, assignment) -> None:
         raise HTTPException(409)
     await payments.pay_deposit(conn, assignment)
     await conn.execute("UPDATE assignments SET status='confirmed' WHERE id=$1", assignment["id"])
+    await booking.unlock(conn, assignment["id"], paid=True)
     await conn.execute("UPDATE requests SET status='confirmed' WHERE id=$1", assignment["request_id"])
     await notify(conn, assignment["guide_id"], "n.deposit_paid", f"/requests/{assignment['request_id']}")
 
@@ -168,7 +172,7 @@ async def cancel(conn, actor, assignment) -> dict:
 
     if actor["id"] == assignment["client_id"]:
         await conn.execute(
-            "UPDATE assignments SET status='cancelled', cancelled_by='client', cancelled_at=now() WHERE id=$1",
+            "UPDATE assignments SET status='cancelled', cancelled_by='client', cancelled_at=now(), contacts_unlocked=FALSE WHERE id=$1",
             assignment["id"],
         )
         await conn.execute("UPDATE requests SET status='cancelled' WHERE id=$1", req["id"])
@@ -180,7 +184,7 @@ async def cancel(conn, actor, assignment) -> dict:
     elif actor["id"] == assignment["guide_id"]:
         was_confirmed = assignment["status"] == "confirmed"
         await conn.execute(
-            "UPDATE assignments SET status='cancelled', cancelled_by='guide', cancelled_at=now() WHERE id=$1",
+            "UPDATE assignments SET status='cancelled', cancelled_by='guide', cancelled_at=now(), contacts_unlocked=FALSE WHERE id=$1",
             assignment["id"],
         )
         result["refund"] = await payments.refund_deposit(conn, assignment["id"])

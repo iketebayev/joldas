@@ -243,19 +243,39 @@ q "UPDATE companies SET plan='start', plan_until=NULL WHERE user_id=$AGID" >/dev
 ok "$(curl -s "$B/api/tours" | python3 -c "import sys,json; print('yes' if all(t['id']!=$TID for t in json.load(sys.stdin)) else 'no')")" "yes" "без подписки туры агентства скрыты"
 ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/tours/$TID)" "404" "страница тура без подписки недоступна туристу"
 
-echo "— Связь с гидом до бронирования и отели (демо-режим: все клики ведут на CONTACT_REDIRECT_URL)"
-DEMO_URL="https://astanahub.com/ru/l/aqtau/astanahub/com"
-ok "$(curl -s $B/guides/$AIDOS | grep -c 'id="contact"')" "1" "у гида без заполненных каналов блок связи виден"
-ok "$(curl -s $B/guides/$AIDOS | grep -c 'class="guide-phone"')" "1" "номер гида показан"
-ok "$(curl -s $B/guides/$AIDOS | grep -o 'btn small[^"]*" href="/c/guide/[0-9]*/[a-z]*' | sed 's|.*/||' | sort | tr '\n' ' ')" "instagram rednote whatsapp x " "показаны все 4 канала"
-ok "$(curl -s -b $D/tour "$B/guides/$AIDOS?region=cn" | grep -o 'btn small[^"]*" href="/c/guide/[0-9]*/[a-z]*' | head -1 | sed 's|.*/||')" "rednote" "для Китая первым идёт RedNote"
-ok "$(curl -s -b $D/tour "$B/guides/$AIDOS?region=west" | grep -o 'btn small[^"]*" href="/c/guide/[0-9]*/[a-z]*' | head -1 | sed 's|.*/||')" "whatsapp" "для Запада первым идёт WhatsApp"
-K0=$(q "SELECT count(*) FROM contact_clicks WHERE target_ref='$AIDOS'")
-for ch in whatsapp instagram rednote x; do
-  ok "$(curl -s -o /dev/null -w '%{redirect_url}' $B/c/guide/$AIDOS/$ch)" "$DEMO_URL" "$ch ведёт на демо-ссылку"
-done
-ok "$(curl -s -o /dev/null -w '%{http_code}' $B/c/guide/$AIDOS/telegram)" "404" "неизвестный канал — 404"
-ok "$(( $(q "SELECT count(*) FROM contact_clicks WHERE target_ref='$AIDOS'") - K0 ))" "4" "переходы записаны в статистику"
+echo "— Прямая бронь: контакты закрыты до депозита 10%, после — открыты, ваучер"
+TID_=$(q "SELECT id FROM users WHERE email='tourist@demo.kz'")
+BG=$(q "SELECT g.user_id FROM guides g WHERE g.day_rate > 0 AND g.id_verified_at IS NOT NULL AND 'en' = ANY(g.languages)
+        AND NOT EXISTS (SELECT 1 FROM assignments a WHERE a.guide_id=g.user_id AND a.client_id=$TID_) ORDER BY g.user_id LIMIT 1")
+BGPH=$(q "SELECT substr(regexp_replace(phone,'\D','','g'),2) FROM users WHERE id=$BG")
+ok "$(curl -s $B/guides/$BG | grep -c "$BGPH")" "0" "гость: номера гида нет в HTML"
+ok "$(curl -s -b $D/tour $B/guides/$BG | grep -cE 'wa\.me|t\.me/|/c/guide/')" "0" "турист без брони: ни ссылок, ни номера"
+ok "$(curl -s -b $D/tour $B/guides/$BG | grep -c 'lockbox')" "1" "вместо контактов — замок"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/c/guide/$BG/whatsapp)" "403" "прямой адрес канала без оплаты — 403"
+ok "$(curl -s $B/api/tours | grep -c "$BGPH")" "0" "API не отдаёт номер гида"
+BD1=$(date -d '+45 days' +%F); BD2=$(date -d '+46 days' +%F); BL=en
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/guides/$BG/book -d "date_from=$BD1&date_to=$BD2&group_size=2&language=$BL"
+BA=$(q "SELECT a.id FROM assignments a JOIN requests r ON r.id=a.request_id WHERE a.guide_id=$BG AND a.client_id=$TID_ AND r.direct ORDER BY a.id DESC LIMIT 1")
+RATE=$(q "SELECT day_rate FROM guides WHERE user_id=$BG")
+ok "$(q "SELECT status || '/' || total || '/' || deposit_amount || '/' || balance_to_guide || '/' || contacts_unlocked FROM assignments WHERE id=$BA")" \
+   "awaiting_payment/$((RATE*2))/$((RATE*2/10))/$((RATE*2 - RATE*2/10))/false" "бронь: итог = ставка × 2 дня, депозит 10%, остаток 90%, контакты закрыты"
+BR=$(q "SELECT request_id FROM assignments WHERE id=$BA")
+ok "$(q "SELECT count(*) FROM notifications WHERE user_id=$BG AND link='/requests/$BR'")" "1" "гид получил уведомление о брони"
+curl -s -o /dev/null -b $D/tour -c $D/tour -X POST $B/guides/$BG/book -d "date_from=$BD2&date_to=$BD2&group_size=2&language=$BL"
+ok "$(q "SELECT count(*) FROM assignments WHERE guide_id=$BG AND client_id=$TID_ AND status<>'cancelled'")" "1" "занятые даты повторно не бронируются"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/assignments/$BA/voucher)" "404" "ваучера до оплаты нет"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/c/guide/$BG/whatsapp)" "403" "до оплаты канал закрыт"
+post tour /assignments/$BA/pay >/dev/null
+ok "$(q "SELECT status || '/' || contacts_unlocked || '/' || (deposit_paid_at IS NOT NULL) || '/' || (voucher_code LIKE 'JL-%') FROM assignments WHERE id=$BA")" "confirmed/true/true/true" "депозит оплачен: контакты открыты, ваучер выдан"
+ok "$(q "SELECT amount FROM payments WHERE assignment_id=$BA AND kind='deposit'")" "$((RATE*2/10))" "в платежах ровно 10%"
+ok "$(curl -s -b $D/tour $B/guides/$BG | grep -c 'class="guide-phone"')" "1" "после оплаты номер гида виден"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/c/guide/$BG/telegram)" "302" "после оплаты каналы открываются"
+VC=$(q "SELECT voucher_code FROM assignments WHERE id=$BA")
+ok "$(curl -s -b $D/tour $B/assignments/$BA/voucher | grep -c "$VC")" "2" "ваучер с кодом открывается"
+ok "$(curl -s $B/guides/$BG | grep -c "$BGPH")" "0" "другим (гостю) номер по-прежнему не виден"
+post tour /assignments/$BA/cancel >/dev/null
+ok "$(q "SELECT status || '/' || contacts_unlocked FROM assignments WHERE id=$BA")" "cancelled/false" "отмена закрывает контакты"
+ok "$(curl -s -o /dev/null -w '%{http_code}' -b $D/tour $B/c/guide/$BG/whatsapp)" "403" "после отмены канал снова закрыт"
 ok "$(curl -s -o /dev/null -w '%{http_code}' -X POST $B/c/track/hotel/rixos/call)" "204" "звонок отелю засчитан"
 ok "$(curl -s -H 'Cookie: lang=ru' -b $D/admin $B/dashboard | grep -c 'Обращения по каналам')" "1" "дашборд показывает обращения по каналам"
 ok "$(curl -s $B/hotels | grep -c 'href="tel:')" "4" "у всех отелей есть кнопка звонка"

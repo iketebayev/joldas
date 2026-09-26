@@ -59,20 +59,35 @@
           <b>{{ money(assignment.total + assignment.entry_fee) }}{% if is_owner and in_cur(assignment.total + assignment.entry_fee, req.currency) %}<br><span class="small muted" style="font-weight:400">{{ in_cur(assignment.total + assignment.entry_fee, req.currency) }}</span>{% endif %}</b></div>
       {% endif %}
     </div>
-    <p>{{ m.status(t, assignment.status) }}</p>
+    {% if req.author_type == 'tourist' %}
+      <div class="price-box small" style="margin-top:10px">
+        <div class="row between dep"><span>💳 {{ t('book.deposit', pct=deposit_percent) }}</span>
+          <b>{{ money(deposit) }}{% if assignment.deposit_paid_at %} ✓{% endif %}</b></div>
+        <div class="row between"><span>🤝 {{ t('book.balance', pct=100 - deposit_percent) }}</span><b>{{ money(assignment.balance_to_guide if assignment.balance_to_guide is not none else assignment.total - deposit) }}</b></div>
+        {% if assignment.deposit_paid_at %}<div class="hint">{{ t('book.deposit_paid_on', date=assignment.deposit_paid_at.strftime('%d.%m.%Y %H:%M')) }}</div>{% endif %}
+      </div>
+    {% endif %}
+    <p>{{ m.status(t, assignment.status) }}{% if assignment.deposit_paid_at %} <span class="badge verified">✓ {{ t('book.deposit_paid') }}</span>{% endif %}</p>
 
-    {% if contacts %}
+    {% if guide_contacts %}
+      <div class="contacts" id="contacts"><b>{{ t('a.contacts') }}: {{ guide.name }}</b>
+        {% with contacts=guide_contacts %}{% include "guides/_contacts.html" %}{% endwith %}</div>
+    {% elif contacts %}
       <div class="contacts"><b>{{ t('a.contacts') }}</b><br>{{ contacts.name }}
         {% if contacts.phone %}<br><a href="tel:{{ contacts.phone }}">{{ contacts.phone }}</a>{% endif %}
         {% if contacts.email %}<br><a href="mailto:{{ contacts.email }}">{{ contacts.email }}</a>{% endif %}</div>
     {% elif is_owner or is_assigned_guide %}
-      <div class="lock">🔒 {{ t('a.contacts_locked') }}</div>
+      <div class="lock">🔒 {{ t('a.contacts_locked_pay', pct=deposit_percent) if req.author_type == 'tourist' else t('a.contacts_locked') }}</div>
+    {% endif %}
+    {% if assignment.voucher_code and assignment.contacts_unlocked and (is_owner or is_assigned_guide) %}
+      <a class="btn block ghost" style="margin-top:10px" href="/assignments/{{ assignment.id }}/voucher">🎟 {{ t('voucher.open') }} · {{ assignment.voucher_code }}</a>
     {% endif %}
 
     {% if is_owner and assignment.status == 'awaiting_payment' %}
-      <div class="card" style="margin-top:14px;box-shadow:none">
+      <div class="card" id="pay" style="margin-top:14px;box-shadow:none">
         <b>{{ t('pay.title') }}</b>
         <p class="small">{{ t('pay.text', pct=deposit_percent, amount=money(deposit), rest=money(assignment.total - deposit)) }}</p>
+        <p class="small muted">{{ t('pay.unlock_hint') }}</p>
         <form method="post" action="/assignments/{{ assignment.id }}/pay"><button class="btn block">{{ t('pay.btn', amount=money(deposit)) }}</button></form>
       </div>
     {% endif %}
@@ -132,8 +147,7 @@
           <div class="body"><b><a href="/guides/{{ o.guide_id }}">{{ o.name }}</a></b>
             <div class="small">{{ m.rating(t, o.rating, o.reviews_count) }}</div>
             <div class="tags" style="margin-top:4px">{{ m.level(t, o.level) }}<span class="badge">{{ t('guides.done_n', n=o.completed_count) }}</span></div>
-            {% if o.message %}<p class="small" style="margin:6px 0 0">«{{ o.message }}»</p>{% endif %}
-            {% if is_owner and o.has_channels and o.status == 'pending' %}<a class="small" href="/guides/{{ o.guide_id }}#contact">💬 {{ t('contact.ask_guide') }}</a>{% endif %}</div>
+            {% if o.message %}<p class="small" style="margin:6px 0 0">«{{ o.message }}»</p>{% endif %}</div>
         </div>
         <div style="text-align:right">
           <div class="price" style="font-weight:800">{{ money(o.price_per_day) }}</div>

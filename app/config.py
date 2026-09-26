@@ -61,13 +61,15 @@ TRANSPORT = ("tour", "car", "none")
 TOUR_INCLUDES = ("transport", "guide", "meals", "camping", "entry_fee")
 
 # Каналы связи до бронирования и их порядок для региона туриста.
-CHANNELS = ("whatsapp", "instagram", "rednote", "x")
-CHANNEL_ORDER = {"cn": ("rednote", "whatsapp", "instagram", "x"),
-                 "cis": ("whatsapp", "instagram", "x", "rednote"),
-                 "west": ("whatsapp", "instagram", "x", "rednote")}
+CHANNELS = ("whatsapp", "telegram", "instagram", "rednote", "x")
+CHANNEL_ORDER = {"cn": ("rednote", "whatsapp", "telegram", "instagram", "x"),
+                 "cis": ("whatsapp", "telegram", "instagram", "x", "rednote"),
+                 "west": ("whatsapp", "instagram", "x", "telegram", "rednote")}
+DIRECT_MAX_DAYS = 14          # прямая бронь из профиля гида — до 14 дней
+CALENDAR_DAYS = 60            # календарь занятости в профиле
 CIS_COUNTRIES = ("RU", "UZ", "KG", "AZ", "GE", "KZ")
-# Демо-режим связи: у всех гидов показываются номер и все каналы, а любой клик ведёт сюда.
-# Пусто — работают настоящие контакты, которые гид указал в профиле.
+# Демо-режим: после оплаты депозита у гида показываются все каналы, а клик по любому ведёт сюда
+# (номера демо-гидов ненастоящие). Пусто — ссылки ведут на настоящие контакты гида.
 CONTACT_REDIRECT_URL = os.getenv("CONTACT_REDIRECT_URL", "https://astanahub.com/ru/l/aqtau/astanahub/com")
 
 # Верификация личности и видеовизитка.

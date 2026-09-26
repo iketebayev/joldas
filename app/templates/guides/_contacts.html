@@ -1,0 +1,10 @@
+{# Контакты гида после оплаты депозита: номер, каналы и готовое сообщение. Ждёт переменную contacts. #}
+{% if contacts.phone %}<div class="guide-phone">📞 <a href="tel:{{ contacts.tel }}">{{ contacts.phone }}</a></div>{% endif %}
+<div class="contact-btns">
+  {% for c in contacts.channels %}
+    <a class="btn small {{ '' if c.recommended else 'ghost' }}" href="/c/guide/{{ contacts.guide_id }}/{{ c.ch }}" target="_blank" rel="noopener">
+      {{ t('contact.ch_' ~ c.ch) }}{% if c.recommended %} · {{ t('contact.recommended') }}{% endif %}</a>
+  {% endfor %}
+</div>
+{% if rednote_id %}<p class="small" style="margin:10px 0 0">RedNote ID: <b style="user-select:all">{{ rednote_id }}</b></p>{% endif %}
+<div class="greet"><span class="muted">{{ t('contact.greet_label') }}:</span> «{{ contacts.greeting }}»</div>

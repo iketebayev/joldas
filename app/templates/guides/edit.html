@@ -36,6 +36,8 @@
   </div>
   <label for="bio">{{ t('profile.bio') }}</label>
   <textarea id="bio" name="bio" placeholder="{{ t('profile.bio_placeholder') }}">{{ g.bio or '' }}</textarea>
+  <label for="vehicle_details">{{ t('profile.vehicle') }}</label>
+  <input id="vehicle_details" name="vehicle_details" type="text" maxlength="200" value="{{ g.vehicle_details or '' }}" placeholder="{{ t('profile.vehicle_ph') }}">
   <label for="external_links">{{ t('profile.external') }}</label>
   <input id="external_links" name="external_links" type="text" value="{{ g.external_links or '' }}" placeholder="TripAdvisor, GetYourGuide…">
 
@@ -52,6 +54,8 @@
       <div><label for="rednote_link">{{ t('contact.rednote_link') }}</label>
         <input id="rednote_link" name="rednote_link" type="url" value="{{ g.rednote_link or '' }}" placeholder="https://www.xiaohongshu.com/user/profile/…">
         <div class="hint">{{ t('contact.rednote_link_hint') }}</div></div>
+      <div><label for="telegram">Telegram</label>
+        <input id="telegram" name="telegram" type="text" value="{{ ('@' ~ g.telegram) if g.telegram else '' }}" placeholder="@username"></div>
       <div><label for="x_handle">X (Twitter)</label>
         <input id="x_handle" name="x_handle" type="text" value="{{ ('@' ~ g.x_handle) if g.x_handle else '' }}" placeholder="@username"></div>
     </div>

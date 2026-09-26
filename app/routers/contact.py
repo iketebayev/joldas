@@ -3,9 +3,9 @@ from fastapi.responses import RedirectResponse, Response
 
 from .. import hotels as H
 from ..auth import current_user, require_user
-from ..config import CHANNELS, CONTACT_REDIRECT_URL
+from ..config import CHANNELS
 from ..db import pool
-from ..services import contact
+from ..services import booking, contact
 from ..web import lang_of, render
 
 router = APIRouter()
@@ -14,20 +14,22 @@ HOTEL_CHANNELS = ("call", "whatsapp", "instagram", "website", "email")
 
 
 @router.get("/c/guide/{gid}/{ch}")
-async def guide_channel(request: Request, gid: int, ch: str, region: str = ""):
-    """Переход в мессенджер гида. Только для вошедших (в демо-режиме — всем); каждый переход считается."""
-    user = await current_user(request) if CONTACT_REDIRECT_URL else await require_user(request)
-    g = await pool().fetchrow("SELECT * FROM guides WHERE user_id=$1", gid)
+async def guide_channel(request: Request, gid: int, ch: str):
+    """Переход в мессенджер гида — только клиенту, оплатившему депозит по брони у этого гида.
+    До оплаты контакты не отдаются ни страницей, ни этим адресом."""
+    user = await require_user(request)
+    db = pool()
+    g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", gid)
     if not g or ch not in CHANNELS:
         raise HTTPException(404)
-    lang = lang_of(request)
-    if region not in contact.REGIONS:
-        region = await contact.region_of(user, lang)
-    url = contact.target_url(g, ch, contact.greeting_lang(region, lang, g["languages"]))
+    a = await booking.unlocked_for(db, user["id"], gid)
+    if not a:
+        raise HTTPException(403)
+    c = await booking.guide_contacts(db, g, a, user, lang_of(request))
+    url = contact.target_url(g, ch, c["greeting"])
     if not url:
         raise HTTPException(404)
-    if not user or user["id"] != gid:
-        await contact.log("guide", gid, ch, user)
+    await contact.log("guide", gid, ch, user)
     return RedirectResponse(url, status_code=302)
 
 

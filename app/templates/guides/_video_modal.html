@@ -9,7 +9,7 @@
       <p class="small muted" id="vm-note">{{ t('video.subs_note') }}</p>
       <div class="vm-actions">
         <a class="btn" id="vm-book" href="/requests/new">{{ t('video.book') }}</a>
-        <a class="btn ghost" id="vm-ask" href="#">💬 {{ t('contact.ask_guide') }}</a>
+        <a class="btn ghost" id="vm-ask" href="#">📅 {{ t('book.cta') }}</a>
         <a class="btn ghost" id="vm-profile" href="#">{{ t('video.open_profile') }}</a>
       </div>
     </div>
@@ -38,7 +38,7 @@
     (b.dataset.meta || "").split("|").filter(Boolean).forEach((x) => {
       const li = document.createElement("li"); li.textContent = x; meta.appendChild(li);
     });
-    document.getElementById("vm-ask").href = "/guides/" + b.dataset.guide + "#contact";
+    document.getElementById("vm-ask").href = "/guides/" + b.dataset.guide + "#book";
     document.getElementById("vm-profile").href = "/guides/" + b.dataset.guide;
     document.getElementById("vm-profile").hidden = location.pathname === "/guides/" + b.dataset.guide;
     dlg.showModal();

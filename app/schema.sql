@@ -337,3 +337,26 @@ CREATE TABLE IF NOT EXISTS guide_lang_levels (
 -- Демо-гиды из сида считаются прошедшими проверку, иначе демо-сценарии встанут.
 UPDATE guides g SET id_verified_at = now()
 FROM users u WHERE u.id = g.user_id AND u.is_demo AND g.id_verified_at IS NULL;
+
+-- Контакты гида закрыты до оплаты депозита. Суммы брони фиксируются в заказе:
+-- deposit_amount (10% — выручка площадки, онлайн) и balance_to_guide (90% — гиду при встрече).
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS telegram TEXT;
+ALTER TABLE guides ADD COLUMN IF NOT EXISTS vehicle_details TEXT;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deposit_amount INT;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS balance_to_guide INT;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS contacts_unlocked BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS deposit_paid_at TIMESTAMPTZ;
+ALTER TABLE assignments ADD COLUMN IF NOT EXISTS voucher_code TEXT UNIQUE;
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS direct BOOLEAN NOT NULL DEFAULT FALSE;  -- бронь напрямую из профиля
+
+-- Заказы до этой версии: суммы и флаг по старым правилам (депозит оплачен → контакты открыты;
+-- турфирма депозит не платит, контакты — после подтверждения).
+UPDATE assignments a SET
+    deposit_amount   = CASE WHEN r.author_type = 'tourist' THEN round(a.total * 0.10) ELSE 0 END,
+    balance_to_guide = a.total - CASE WHEN r.author_type = 'tourist' THEN round(a.total * 0.10) ELSE 0 END
+FROM requests r WHERE r.id = a.request_id AND a.deposit_amount IS NULL;
+UPDATE assignments a SET contacts_unlocked = TRUE,
+    deposit_paid_at = (SELECT min(p.created_at) FROM payments p WHERE p.assignment_id = a.id AND p.kind = 'deposit')
+WHERE a.status IN ('confirmed','done') AND NOT a.contacts_unlocked AND a.voucher_code IS NULL;
+UPDATE assignments SET voucher_code = 'JL-' || upper(substr(md5(id::text || created_at::text), 1, 6))
+WHERE contacts_unlocked AND voucher_code IS NULL;

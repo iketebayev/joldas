@@ -29,7 +29,8 @@
     <dt>{{ t('profile.languages') }}</dt><dd><div class="tags">{{ m.langs(t, g.languages) }}</div></dd>
     <dt>{{ t('profile.specializations') }}</dt><dd><div class="tags">{% for s in g.specializations %}<span class="badge">{{ t('spec.' ~ s) }}</span>{% endfor %}</div></dd>
     {% if sites %}<dt>{{ t('profile.sites') }}</dt><dd>{% for s in sites %}{{ name_of(s) }}{{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
-    {% if g.day_rate %}<dt>{{ t('profile.day_rate') }}</dt><dd>{{ money(g.day_rate) }}</dd>{% endif %}
+    {% if g.day_rate %}<dt>{{ t('profile.day_rate') }}</dt><dd>{{ money(g.day_rate) }} <span class="small muted">{{ in_cur(g.day_rate, 'USD') }}</span></dd>{% endif %}
+    {% if g.vehicle_details %}<dt>{{ t('profile.vehicle') }}</dt><dd>🚙 {{ g.vehicle_details }}</dd>{% endif %}
     {% if g.experience_years %}<dt>{{ t('profile.experience') }}</dt><dd>{{ t('profile.years_n', n=g.experience_years) }} <span class="small muted">({{ t('profile.self_declared') }})</span></dd>{% endif %}
     {% if g.external_links %}<dt>{{ t('profile.external') }}</dt><dd class="small">{{ g.external_links }}</dd>{% endif %}
   </dl>
@@ -39,46 +40,73 @@
     <div class="tags">{% for a in addons %}<span class="badge wrap">{{ t('addon.' ~ a.kind) }} · {{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</span>{% endfor %}</div>
   {% endif %}
   {% if not user or user.id != g.id %}
-    <div style="margin-top:16px">
-      <a class="btn" href="/requests/new">+ {{ t('req.new_btn') }}</a>
+    <div class="row" style="margin-top:16px;gap:8px">
+      {% if g.day_rate and g.id_verified_at %}<a class="btn" href="#book">{{ t('book.cta') }}</a>{% endif %}
+      <a class="btn ghost" href="/requests/new">+ {{ t('req.new_btn') }}</a>
     </div>
   {% endif %}
 </div>
 
-{% if channels or (user and user.id == g.id) %}
+{# ---------- бронь напрямую: календарь занятости и расчёт ---------- #}
+{% if g.day_rate and g.id_verified_at and (not user or user.id != g.id) %}
+<div class="card" id="book">
+  <h2 style="margin-top:0">{{ t('book.title') }}</h2>
+  <p class="small muted" style="margin-top:0">{{ t('book.lead', pct=deposit_percent) }}</p>
+  <div class="cal" id="cal" aria-label="{{ t('book.calendar') }}"></div>
+  <div class="cal-legend small muted"><span><i class="free"></i>{{ t('book.free') }}</span><span><i class="busy"></i>{{ t('book.busy_day') }}</span><span><i class="pick"></i>{{ t('book.picked') }}</span></div>
+  {% if user and user.role == 'tourist' %}
+  <form method="post" action="/guides/{{ g.id }}/book" id="bookform" style="margin-top:14px">
+    <div class="grid g2" style="gap:12px">
+      <div><label for="b_from">{{ t('book.date_from') }}</label><input id="b_from" name="date_from" type="date" required min="{{ cal_start.isoformat() }}"></div>
+      <div><label for="b_to">{{ t('book.date_to') }}</label><input id="b_to" name="date_to" type="date" required min="{{ cal_start.isoformat() }}"></div>
+      <div><label for="b_group">{{ t('book.group') }}</label><input id="b_group" name="group_size" type="number" min="1" max="30" value="2" required></div>
+      <div><label for="b_lang">{{ t('book.language') }}</label>
+        <select id="b_lang" name="language">{% for c in g.languages %}<option value="{{ c }}" {{ 'selected' if c == 'en' }}>{{ t('lang.' ~ c) }}</option>{% endfor %}</select></div>
+    </div>
+    {% if sites %}<label>{{ t('book.sites') }}</label>
+      <div class="checks">{% for s in sites %}<label><input type="checkbox" name="site_ids" value="{{ s.id }}"> {{ name_of(s) }}</label>{% endfor %}</div>{% endif %}
+    {% if addons %}<label>{{ t('addon.title') }}</label>
+      <div class="checks">{% for a in addons %}<label><input type="checkbox" name="addon_ids" value="{{ a.id }}" data-price="{{ a.price }}" data-per="{{ a.per }}"> {{ t('addon.' ~ a.kind) }} · {{ money(a.price) }} {{ t('addon.per_' ~ a.per) }}</label>{% endfor %}</div>{% endif %}
+    <div class="price-box" id="pbox" hidden>
+      <div class="row between"><span id="p_days"></span><span id="p_base"></span></div>
+      <div class="row between" id="p_add_row" hidden><span>{{ t('addon.title') }}</span><span id="p_add"></span></div>
+      <div class="row between tot"><b>{{ t('book.total') }}</b><b id="p_total"></b></div>
+      <div class="row between dep"><span>💳 {{ t('book.deposit', pct=deposit_percent) }}</span><b id="p_dep"></b></div>
+      <div class="row between"><span>🤝 {{ t('book.balance', pct=100 - deposit_percent) }}</span><b id="p_bal"></b></div>
+      <div class="hint" id="p_busy" hidden>⚠️ {{ t('book.busy') }}</div>
+    </div>
+    <button class="btn block" id="b_send" style="margin-top:12px">{{ t('book.submit') }}</button>
+    <p class="hint">{{ t('book.after') }}</p>
+  </form>
+  {% elif not user %}
+    <a class="btn" style="margin-top:12px" href="/login?next=/guides/{{ g.id }}%23book">{{ t('book.login') }}</a>
+  {% elif user.role == 'company' %}
+    <p class="small" style="margin-top:12px">{{ t('book.company') }} <a href="/requests/new">{{ t('req.new_btn') }} →</a></p>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ---------- контакты: закрыты до оплаты депозита ---------- #}
+{% if not user or user.id != g.id %}
 <div class="card" id="contact">
   <h2 style="margin-top:0">{{ t('contact.title') }}</h2>
-  <p class="small muted" style="margin-top:0">{{ t('contact.lead') }}</p>
-  {% if not channels %}
-    <p class="small">{{ t('contact.none_own') }} <a href="/profile#channels">{{ t('contact.fill') }} →</a></p>
-  {% elif not user and not demo_contacts %}
-    <div class="tags" style="margin-bottom:12px">{% for c in channels %}<span class="badge">{{ t('contact.ch_' ~ c.ch) }}</span>{% endfor %}</div>
-    <a class="btn" href="/login?next=/guides/{{ g.id }}%23contact">{{ t('contact.login') }}</a>
+  {% if contacts %}
+    <p class="small" style="margin-top:0">✅ {{ t('contact.unlocked', code=unlocked.voucher_code) }}
+      <a href="/assignments/{{ unlocked.id }}/voucher">{{ t('voucher.open') }} →</a></p>
+    {% include "guides/_contacts.html" %}
   {% else %}
-    <div class="small muted">{{ t('contact.region') }}</div>
-    <div class="region-pills">{% for r in regions %}
-      <a href="?region={{ r }}#contact" class="{{ 'on' if r == region }}">{{ t('contact.region_' ~ r) }}</a>{% endfor %}</div>
-    {% if phone %}<div class="guide-phone">📞 <a href="/c/guide/{{ g.id }}/whatsapp?region={{ region }}" target="_blank" rel="noopener">{{ phone }}</a></div>{% endif %}
-    <div class="contact-btns">
-      {% for c in channels if c.ch != 'rednote' or g.rednote_link or demo_contacts %}
-        <a class="btn small {{ '' if c.recommended else 'ghost' }}" href="/c/guide/{{ g.id }}/{{ c.ch }}?region={{ region }}" target="_blank" rel="noopener">
-          {{ t('contact.ch_' ~ c.ch) }}{% if c.recommended %} · {{ t('contact.recommended') }}{% endif %}</a>
-      {% endfor %}
-    </div>
-    {% if g.whatsapp or demo_contacts %}<div class="greet"><span class="muted">{{ t('contact.greet_label') }}:</span> «{{ greeting }}»</div>{% endif %}
-    {% if g.rednote_id or g.rednote_link %}
-      <div class="rednote">
-        {% if g.rednote_link %}<div class="qr" id="rn-qr" data-link="{{ g.rednote_link }}"></div>{% endif %}
-        <div>
-          <b>RedNote · 小红书</b>
-          {% if g.rednote_id %}<div class="small">{{ t('contact.rednote_id') }}: <b data-track="/c/track/guide/{{ g.id }}/rednote" style="user-select:all">{{ g.rednote_id }}</b></div>{% endif %}
-          {% if g.rednote_link %}<div class="small muted">{{ t('contact.rednote_scan') }}</div>{% endif %}
-        </div>
+    <div class="lockbox">
+      <div class="lock-ico" aria-hidden="true">🔒</div>
+      <div><b>{{ t('contact.locked_title') }}</b>
+        <div class="small">{{ t('contact.locked_text', pct=deposit_percent) }}</div>
+        {% if channel_kinds %}<div class="tags" style="margin-top:8px">{% for c in channel_kinds %}<span class="badge">🔒 {{ t('contact.ch_' ~ c) }}</span>{% endfor %}</div>{% endif %}
       </div>
-    {% endif %}
+    </div>
   {% endif %}
-  <p class="small muted" style="margin:12px 0 0">🔒 {{ t('contact.keep_booking', app=app_name) }}</p>
 </div>
+{% elif user and user.id == g.id %}
+<div class="card" id="contact"><h2 style="margin-top:0">{{ t('contact.title') }}</h2>
+  <p class="small">{{ t('contact.own_hint') }} <a href="/profile#channels">{{ t('contact.fill') }} →</a></p></div>
 {% endif %}
 
 <div class="card">
@@ -123,11 +151,68 @@
 {% endblock %}
 {% block scripts %}
 {% include "guides/_video_modal.html" %}
-{% if user and g.rednote_link %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+{% if g.day_rate and g.id_verified_at %}
 <script>
-  const box = document.getElementById("rn-qr");
-  if (box && window.QRCode) new QRCode(box, { text: box.dataset.link, width: 240, height: 240, correctLevel: QRCode.CorrectLevel.M });
+(function () {
+  // Календарь занятости на CALENDAR_DAYS дней и живой расчёт: итог, депозит, остаток гиду.
+  const BUSY = new Set({{ busy | tojson }}), START = {{ cal_start.isoformat() | tojson }}, N = {{ cal_days }};
+  const RATE = {{ g.day_rate }}, PCT = {{ deposit_percent }}, MAX = {{ max_days }};
+  const LOC = {{ {'kk': 'kk-KZ', 'ru': 'ru-RU', 'en': 'en-GB'}[lang] | tojson }};
+  const DAYS_T = {{ t('book.days_x') | tojson }};
+  const fmt = (v) => new Intl.NumberFormat("ru-RU").format(Math.round(v)).replace(/\u00a0|,/g, "\u00a0") + "\u00a0₸";
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const cal = document.getElementById("cal");
+  const f = document.getElementById("b_from"), to = document.getElementById("b_to"), grp = document.getElementById("b_group");
+  const s0 = new Date(START + "T00:00:00Z");
+  let month = -1;
+  for (let i = 0; i < N; i++) {
+    const d = new Date(s0.getTime() + i * 864e5), k = iso(d);
+    if (d.getUTCMonth() !== month) {
+      month = d.getUTCMonth();
+      const h = document.createElement("div"); h.className = "cal-m";
+      h.textContent = d.toLocaleDateString(LOC, { month: "long", year: "numeric", timeZone: "UTC" });
+      cal.appendChild(h);
+      // Неделя с понедельника: пустые клетки до первого дня месяца в календаре.
+      for (let j = 0; j < (d.getUTCDay() + 6) % 7; j++) cal.appendChild(document.createElement("span"));
+    }
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cal-d" + (BUSY.has(k) ? " busy" : ""); b.dataset.d = k;
+    b.textContent = d.getUTCDate(); b.disabled = BUSY.has(k) || !f;
+    b.title = d.toLocaleDateString(LOC, { weekday: "short", day: "numeric", month: "long", timeZone: "UTC" });
+    cal.appendChild(b);
+  }
+  if (!f) return;
+  cal.addEventListener("click", (e) => {
+    const b = e.target.closest(".cal-d"); if (!b || b.disabled) return;
+    if (!f.value || (f.value && to.value && f.value !== to.value) || b.dataset.d < f.value) { f.value = b.dataset.d; to.value = b.dataset.d; }
+    else { to.value = b.dataset.d; }
+    calc();
+  });
+  function calc() {
+    cal.querySelectorAll(".cal-d").forEach((b) => b.classList.toggle("pick", f.value && b.dataset.d >= f.value && b.dataset.d <= (to.value || f.value)));
+    const box = document.getElementById("pbox");
+    if (!f.value) { box.hidden = true; return; }
+    if (!to.value || to.value < f.value) to.value = f.value;
+    const days = Math.round((new Date(to.value) - new Date(f.value)) / 864e5) + 1;
+    let clash = false;
+    for (let i = 0; i < days; i++) if (BUSY.has(iso(new Date(new Date(f.value + "T00:00:00Z").getTime() + i * 864e5)))) clash = true;
+    const g = Math.max(1, +grp.value || 1);
+    let add = 0;
+    document.querySelectorAll("input[name=addon_ids]:checked").forEach((c) => add += +c.dataset.price * (c.dataset.per === "person" ? g : 1));
+    const total = RATE * days + add, dep = Math.round(total * PCT / 100);
+    document.getElementById("p_days").textContent = DAYS_T.replace("{n}", days).replace("{rate}", fmt(RATE));
+    document.getElementById("p_base").textContent = fmt(RATE * days);
+    document.getElementById("p_add_row").hidden = !add; document.getElementById("p_add").textContent = fmt(add);
+    document.getElementById("p_total").textContent = fmt(total);
+    document.getElementById("p_dep").textContent = fmt(dep);
+    document.getElementById("p_bal").textContent = fmt(total - dep);
+    document.getElementById("p_busy").hidden = !clash && days <= MAX;
+    document.getElementById("b_send").disabled = clash || days > MAX;
+    box.hidden = false;
+  }
+  [f, to, grp].forEach((x) => x.addEventListener("input", calc));
+  document.querySelectorAll("input[name=addon_ids]").forEach((x) => x.addEventListener("change", calc));
+})();
 </script>
 {% endif %}
 {% endblock %}

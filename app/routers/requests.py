@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import CONTACT_REDIRECT_URL, CURRENCIES, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
+from ..config import CURRENCIES, DOMAIN, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
 from ..db import pool
 from .. import academy
-from ..services import fees, orders, rates, route, safety
+from ..services import booking, fees, orders, rates, route, safety
 from ..services.payments import deposit_for
 from ..web import flash, lang_of, redirect, render
 from .guides import all_sites
@@ -170,33 +170,36 @@ async def detail(request: Request, rid: int):
     if is_owner or user["role"] == "admin":
         offers = await db.fetch(
             """SELECT o.*, u.name, u.rating, u.reviews_count, g.level, g.languages,
-                      g.completed_count, g.experience_years,
-                      ($2 OR g.whatsapp IS NOT NULL OR g.instagram IS NOT NULL OR g.rednote_id IS NOT NULL
-                       OR g.rednote_link IS NOT NULL OR g.x_handle IS NOT NULL) AS has_channels
+                      g.completed_count, g.experience_years
                FROM offers o JOIN users u ON u.id=o.guide_id JOIN guides g ON g.user_id=o.guide_id
                WHERE o.request_id=$1 AND o.status IN ('pending','chosen')
                ORDER BY (o.status='chosen') DESC, u.rating DESC NULLS LAST, g.completed_count DESC""",
-            rid, bool(CONTACT_REDIRECT_URL),
+            rid,
         )
 
-    # Контакты открываются только после подтверждения.
-    contacts, guide = None, None
+    # Контакты открываются только после оплаты депозита (турфирме — после подтверждения).
+    contacts, guide, guide_contacts, rednote_id = None, None, None, None
     if assignment and assignment["status"] != "cancelled":
         guide = await db.fetchrow(
-            """SELECT u.id, u.name, u.rating, u.reviews_count, g.level
+            """SELECT u.id, u.name, u.rating, u.reviews_count, g.level, g.photo
                FROM users u JOIN guides g ON g.user_id=u.id WHERE u.id=$1""",
             assignment["guide_id"],
         )
-        if assignment["status"] in ("confirmed", "done") and (is_owner or is_assigned_guide):
-            other = assignment["guide_id"] if is_owner else assignment["client_id"]
-            contacts = await db.fetchrow("SELECT name, phone, email FROM users WHERE id=$1", other)
+        if assignment["contacts_unlocked"] and assignment["status"] in ("confirmed", "done"):
+            if is_owner:
+                g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", assignment["guide_id"])
+                a = {**dict(assignment), "date_from": req["date_from"], "date_to": req["date_to"]}
+                guide_contacts = await booking.guide_contacts(db, g, a, user, lang_of(request))
+                rednote_id = g["rednote_id"]
+            elif is_assigned_guide:
+                contacts = await db.fetchrow("SELECT name, phone, email FROM users WHERE id=$1", assignment["client_id"])
 
     my_review = None
     if assignment and assignment["status"] == "done":
         my_review = await db.fetchrow(
             "SELECT id FROM reviews WHERE assignment_id=$1 AND author_id=$2", assignment["id"], user["id"]
         )
-    deposit = deposit_for(assignment["total"]) if assignment else 0
+    deposit = (assignment["deposit_amount"] if assignment["deposit_amount"] is not None else deposit_for(assignment["total"])) if assignment else 0
 
     # Допуслуги: у каждого отклика — допы гида; у заказа — выбранные.
     offer_addons = {}
@@ -229,7 +232,7 @@ async def detail(request: Request, rid: int):
     brief = safety.brief(req, sf, all_sites_rows, lang_of(request)) if (is_owner or guide_confirmed) else None
     return await render(
         request, "requests/detail.html", req=req, offers=offers, assignment=assignment,
-        guide=guide, contacts=contacts, is_owner=is_owner, is_assigned_guide=is_assigned_guide,
+        guide=guide, contacts=contacts, guide_contacts=guide_contacts, rednote_id=rednote_id, is_owner=is_owner, is_assigned_guide=is_assigned_guide,
         my_offer=my_offer, my_review=my_review, deposit=deposit, sites=all_sites_rows,
         sf=sf, show_health=show_health, brief=brief,
         offer_addons=offer_addons, chosen_addons=chosen_addons,
@@ -348,3 +351,24 @@ async def route_gpx(request: Request, rid: int):
     body = route.gpx(f"Tour #{rid}", sites, lang_of(request))
     return Response(body, media_type="application/gpx+xml",
                     headers={"Content-Disposition": f'attachment; filename="tour-{rid}.gpx"'})
+
+
+@router.get("/assignments/{aid}/voucher")
+async def voucher(request: Request, aid: int):
+    """Электронный ваучер: доступен клиенту и гиду после оплаты депозита."""
+    user = await require_user(request)
+    db = pool()
+    a = await load_assignment(aid)
+    if user["id"] not in (a["client_id"], a["guide_id"]) or not a["contacts_unlocked"] or a["status"] not in ("confirmed", "done"):
+        raise HTTPException(404)
+    req = await db.fetchrow("SELECT * FROM requests WHERE id=$1", a["request_id"])
+    g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", a["guide_id"])
+    names = {r["id"]: r["name"] for r in await db.fetch("SELECT id, name FROM users WHERE id = ANY($1::int[])",
+                                                         [a["client_id"], a["guide_id"]])}
+    gc = await booking.guide_contacts(db, g, {**dict(a), "date_from": req["date_from"], "date_to": req["date_to"]},
+                                      user, lang_of(request))
+    addons = await db.fetch("SELECT * FROM assignment_addons WHERE assignment_id=$1 ORDER BY amount DESC", aid)
+    sites = [s for s in await all_sites() if s["id"] in req["site_ids"]]
+    return await render(request, "requests/voucher.html", a=a, req=req, client=names.get(a["client_id"]),
+                        guide_name=names.get(a["guide_id"]), gc=gc, addons=addons, sites=sites,
+                        url=f"https://{DOMAIN}/assignments/{aid}/voucher")

@@ -1,9 +1,12 @@
+from datetime import date
+
 from fastapi import APIRouter, HTTPException, Request
 
 from ..auth import current_user, require_user
-from ..config import ADDON_KINDS, APP_NAME, CONTACT_REDIRECT_URL, GUIDE_LANGS, KYC_REQUIRED, SPECIALIZATIONS
+from ..config import (ADDON_KINDS, CALENDAR_DAYS, CHANNELS, CONTACT_REDIRECT_URL, DIRECT_MAX_DAYS, GUIDE_LANGS,
+                      KYC_REQUIRED, SPECIALIZATIONS)
 from ..db import pool
-from ..services import contact
+from ..services import booking, contact, orders
 from ..web import flash, lang_of, redirect, render
 
 router = APIRouter()
@@ -18,6 +21,14 @@ MEDIA_COLS = """, v.token AS video_token, v.lang AS video_lang, v.level AS video
       WHERE l.guide_id = u.id) AS verified_langs"""
 MEDIA_JOIN = """LEFT JOIN LATERAL (SELECT * FROM guide_videos gv WHERE gv.guide_id = u.id AND gv.status = 'approved'
     ORDER BY gv.id DESC LIMIT 1) v ON TRUE"""
+
+
+# Контакты гида — приватные поля: в шаблон публичных страниц не передаются вообще.
+PRIVATE = ("whatsapp", "telegram", "instagram", "rednote_id", "rednote_link", "x_handle")
+
+
+def public(row) -> dict:
+    return {k: v for k, v in dict(row).items() if k not in PRIVATE}
 
 
 async def all_sites():
@@ -43,7 +54,7 @@ async def catalog(request: Request, language: str = "", spec: str = "", level: s
             ORDER BY u.rating DESC NULLS LAST, g.completed_count DESC, u.reviews_count DESC""",
         *args,
     )
-    return await render(request, "guides/list.html", rows=rows, sites=await all_sites(),
+    return await render(request, "guides/list.html", rows=[public(r) for r in rows], sites=await all_sites(),
                         f={"language": language, "spec": spec, "level": level, "site": site})
 
 
@@ -59,7 +70,7 @@ async def guide_reviews(guide_id: int):
 
 
 @router.get("/guides/{guide_id}")
-async def profile(request: Request, guide_id: int, region: str = ""):
+async def profile(request: Request, guide_id: int):
     db = pool()
     g = await db.fetchrow(
         f"""SELECT u.id, u.name, u.rating, u.reviews_count, u.is_demo, g.* {MEDIA_COLS}
@@ -76,17 +87,70 @@ async def profile(request: Request, guide_id: int, region: str = ""):
         guide_id,
     )
     sites = [s for s in await all_sites() if s["id"] in g["site_ids"]]
-    # Связь до бронирования: порядок каналов под регион туриста (можно переключить вручную).
-    lang = lang_of(request)
-    if region not in contact.REGIONS:
-        region = await contact.region_of(await current_user(request), lang)
-    greet_lang = contact.greeting_lang(region, lang, g["languages"])
-    return await render(request, "guides/profile.html", g=g, reviews=reviews,
+    user = await current_user(request)
+    # Контакты — только клиенту с оплаченным депозитом по брони у этого гида.
+    unlocked = contacts = None
+    if user:
+        unlocked = await booking.unlocked_for(db, user["id"], guide_id)
+        if unlocked:
+            contacts = await booking.guide_contacts(db, g, unlocked, user, lang_of(request))
+    start = date.today()
+    busy = await booking.busy_dates(db, guide_id, start)
+    return await render(request, "guides/profile.html", g=public(g), reviews=reviews,
                         criteria=criteria, sites=sites, addons=await guide_addons(guide_id),
-                        channels=contact.channels(g, region), region=region, regions=contact.REGIONS,
-                        greeting=contact.GREETING[greet_lang].format(app=APP_NAME),
-                        demo_contacts=bool(CONTACT_REDIRECT_URL),
-                        phone=contact.fmt_phone(g["whatsapp"] or await db.fetchval("SELECT phone FROM users WHERE id=$1", guide_id)))
+                        unlocked=unlocked, contacts=contacts,
+                        rednote_id=g["rednote_id"] if contacts else None,
+                        busy=[d.isoformat() for d in busy], cal_start=start, cal_days=CALENDAR_DAYS,
+                        max_days=DIRECT_MAX_DAYS,
+                        channel_kinds=[c for c in CHANNELS if CONTACT_REDIRECT_URL or g[
+                            {"x": "x_handle", "rednote": "rednote_id"}.get(c, c)]])
+
+
+@router.post("/guides/{guide_id}/book")
+async def book(request: Request, guide_id: int):
+    """Прямая бронь из профиля: даты → цена по ставке гида → заказ ждёт депозита 10%."""
+    user = await require_user(request, "tourist")
+    form = await request.form()
+    db = pool()
+    g = await db.fetchrow("SELECT * FROM guides WHERE user_id=$1", guide_id)
+    if not g or not g["day_rate"] or not g["id_verified_at"]:
+        raise HTTPException(404)
+    try:
+        d_from = date.fromisoformat(str(form.get("date_from")))
+        d_to = date.fromisoformat(str(form.get("date_to") or form.get("date_from")))
+        group = int(form.get("group_size") or 0)
+    except ValueError:
+        flash(request, "book.invalid", "error")
+        return redirect(f"/guides/{guide_id}#book")
+    lang = form.get("language")
+    days = (d_to - d_from).days + 1
+    if d_from < date.today() or not 1 <= days <= DIRECT_MAX_DAYS or not 1 <= group <= 30 or lang not in g["languages"]:
+        flash(request, "book.invalid", "error")
+        return redirect(f"/guides/{guide_id}#book")
+    site_ids = [int(x) for x in form.getlist("site_ids") if str(x).isdigit() and int(x) in g["site_ids"]]
+    try:
+        async with db.acquire() as conn, conn.transaction():
+            region = await conn.fetchval("SELECT id FROM regions WHERE code='mangystau'")
+            rid = await conn.fetchval(
+                """INSERT INTO requests (author_id, author_type, region_id, date_from, date_to, site_ids,
+                       language, group_size, price_per_day, note, direct)
+                   VALUES ($1,'tourist',$2,$3,$4,$5,$6,$7,$8,$9,TRUE) RETURNING id""",
+                user["id"], region, d_from, d_to, site_ids, lang, group, g["day_rate"],
+                (form.get("note") or "").strip()[:500] or None,
+            )
+            oid = await conn.fetchval(
+                """INSERT INTO offers (request_id, guide_id, price_per_day, status)
+                   VALUES ($1,$2,$3,'pending') RETURNING id""", rid, guide_id, g["day_rate"],
+            )
+            addon_ids = [int(x) for x in form.getlist("addon_ids") if str(x).isdigit()]
+            await orders.choose_offer(conn, user, oid, addon_ids)
+    except HTTPException as e:
+        if e.status_code == 409:
+            flash(request, "book.busy", "error")
+            return redirect(f"/guides/{guide_id}#book")
+        raise
+    flash(request, "book.created")
+    return redirect(f"/requests/{rid}#pay")
 
 
 async def guide_addons(guide_id: int):
@@ -152,7 +216,8 @@ async def edit(request: Request):
     await pool().execute(
         """UPDATE guides SET languages=$2, specializations=$3, site_ids=$4, day_rate=$5,
                experience_years=$6, bio=$7, external_links=$8,
-               whatsapp=$9, instagram=$10, rednote_id=$11, rednote_link=$12, x_handle=$13
+               whatsapp=$9, instagram=$10, rednote_id=$11, rednote_link=$12, x_handle=$13,
+               telegram=$14, vehicle_details=$15
            WHERE user_id=$1""",
         user["id"],
         [x for x in form.getlist("languages") if x in GUIDE_LANGS],
@@ -162,7 +227,8 @@ async def edit(request: Request):
         (form.get("external_links") or "").strip() or None,
         contact.norm_phone(form.get("whatsapp")), contact.norm_handle(form.get("instagram")),
         contact.norm_rednote_id(form.get("rednote_id")), contact.norm_rednote_link(form.get("rednote_link")),
-        contact.norm_handle(form.get("x_handle")),
+        contact.norm_handle(form.get("x_handle")), contact.norm_handle(form.get("telegram"), tg=True),
+        (form.get("vehicle_details") or "").strip()[:200] or None,
     )
     flash(request, "profile.saved")
     return redirect("/profile")

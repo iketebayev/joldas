@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block title %}{{ t('voucher.title') }} {{ a.voucher_code }}{% endblock %}
+{% block content %}
+<div class="row between noprint"><a href="/requests/{{ req.id }}">← {{ t('voucher.back') }}</a>
+  <button class="btn small ghost" onclick="print()">🖨 {{ t('voucher.print') }}</button></div>
+<div class="card voucher">
+  <div class="row between" style="align-items:flex-start;gap:16px">
+    <div>
+      <div class="small muted">{{ app_name }} · {{ t('voucher.title') }}</div>
+      <div class="v-code">{{ a.voucher_code }}</div>
+      <span class="badge verified">✓ {{ t('book.deposit_paid') if a.deposit_paid_at else t('status.confirmed') }}</span>
+    </div>
+    <div id="vqr" class="v-qr" data-url="{{ url }}" aria-label="QR"></div>
+  </div>
+  <dl class="kv" style="margin-top:16px">
+    <dt>{{ t('voucher.client') }}</dt><dd>{{ client }} · {{ req.group_size }} {{ t('voucher.people') }}</dd>
+    <dt>{{ t('voucher.guide') }}</dt><dd><b>{{ guide_name }}</b>{% if gc.phone %} · <a href="tel:{{ gc.tel }}">{{ gc.phone }}</a>{% endif %}</dd>
+    <dt>{{ t('voucher.dates') }}</dt><dd>{{ m.dates(req) }} · {{ t('common.days_n', n=a.days) }}</dd>
+    <dt>{{ t('voucher.language') }}</dt><dd>{{ t('lang.' ~ req.language) }}</dd>
+    {% if sites %}<dt>{{ t('voucher.route') }}</dt><dd>{% for s in sites %}{{ name_of(s) }}{{ ', ' if not loop.last }}{% endfor %}</dd>{% endif %}
+  </dl>
+  <div class="price-box" style="margin-top:14px">
+    <div class="row between"><span>{{ t('common.days_n', n=a.days) }} × {{ money(a.price_per_day) }}</span><span>{{ money(a.days * a.price_per_day) }}</span></div>
+    {% for x in addons %}<div class="row between"><span>{{ t('addon.' ~ x.kind) }}</span><span>{{ money(x.amount) }}</span></div>{% endfor %}
+    <div class="row between tot"><b>{{ t('book.total') }}</b><b>{{ money(a.total) }}</b></div>
+    {% if a.deposit_amount %}<div class="row between"><span>💳 {{ t('voucher.paid_online') }}{% if a.deposit_paid_at %} · {{ a.deposit_paid_at.strftime('%d.%m.%Y') }}{% endif %}</span><b>{{ money(a.deposit_amount) }}</b></div>{% endif %}
+    <div class="row between dep"><span>🤝 {{ t('voucher.pay_guide') }}</span><b>{{ money(a.balance_to_guide) }}</b></div>
+    {% if a.entry_fee %}<div class="row between"><span>🎫 {{ t('fee.line') }}</span><span>{{ money(a.entry_fee) }}</span></div>
+      <div class="hint">{{ t('fee.line_hint_client') }}</div>{% endif %}
+  </div>
+  <p class="small muted" style="margin-top:14px">{{ t('voucher.rules', h=48) }}</p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  const q = document.getElementById("vqr");
+  if (window.QRCode) new QRCode(q, { text: q.dataset.url, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+</script>
+{% endblock %}
