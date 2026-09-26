@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Request
 
 from ..auth import current_user, require_user
-from ..config import ADDON_KINDS, APP_NAME, GUIDE_LANGS, KYC_REQUIRED, SPECIALIZATIONS
+from ..config import ADDON_KINDS, APP_NAME, CONTACT_REDIRECT_URL, GUIDE_LANGS, KYC_REQUIRED, SPECIALIZATIONS
 from ..db import pool
 from ..services import contact
 from ..web import flash, lang_of, redirect, render
@@ -84,7 +84,9 @@ async def profile(request: Request, guide_id: int, region: str = ""):
     return await render(request, "guides/profile.html", g=g, reviews=reviews,
                         criteria=criteria, sites=sites, addons=await guide_addons(guide_id),
                         channels=contact.channels(g, region), region=region, regions=contact.REGIONS,
-                        greeting=contact.GREETING[greet_lang].format(app=APP_NAME))
+                        greeting=contact.GREETING[greet_lang].format(app=APP_NAME),
+                        demo_contacts=bool(CONTACT_REDIRECT_URL),
+                        phone=contact.fmt_phone(g["whatsapp"] or await db.fetchval("SELECT phone FROM users WHERE id=$1", guide_id)))
 
 
 async def guide_addons(guide_id: int):

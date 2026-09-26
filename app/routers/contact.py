@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse, Response
 
 from .. import hotels as H
 from ..auth import current_user, require_user
-from ..config import CHANNELS
+from ..config import CHANNELS, CONTACT_REDIRECT_URL
 from ..db import pool
 from ..services import contact
 from ..web import lang_of, render
@@ -15,8 +15,8 @@ HOTEL_CHANNELS = ("call", "whatsapp", "instagram", "website", "email")
 
 @router.get("/c/guide/{gid}/{ch}")
 async def guide_channel(request: Request, gid: int, ch: str, region: str = ""):
-    """Переход в мессенджер гида. Только для вошедших; каждый переход считается."""
-    user = await require_user(request)
+    """Переход в мессенджер гида. Только для вошедших (в демо-режиме — всем); каждый переход считается."""
+    user = await current_user(request) if CONTACT_REDIRECT_URL else await require_user(request)
     g = await pool().fetchrow("SELECT * FROM guides WHERE user_id=$1", gid)
     if not g or ch not in CHANNELS:
         raise HTTPException(404)
@@ -26,7 +26,7 @@ async def guide_channel(request: Request, gid: int, ch: str, region: str = ""):
     url = contact.target_url(g, ch, contact.greeting_lang(region, lang, g["languages"]))
     if not url:
         raise HTTPException(404)
-    if user["id"] != gid:
+    if not user or user["id"] != gid:
         await contact.log("guide", gid, ch, user)
     return RedirectResponse(url, status_code=302)
 

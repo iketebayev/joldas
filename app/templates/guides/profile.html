@@ -51,20 +51,21 @@
   <p class="small muted" style="margin-top:0">{{ t('contact.lead') }}</p>
   {% if not channels %}
     <p class="small">{{ t('contact.none_own') }} <a href="/profile#channels">{{ t('contact.fill') }} →</a></p>
-  {% elif not user %}
+  {% elif not user and not demo_contacts %}
     <div class="tags" style="margin-bottom:12px">{% for c in channels %}<span class="badge">{{ t('contact.ch_' ~ c.ch) }}</span>{% endfor %}</div>
     <a class="btn" href="/login?next=/guides/{{ g.id }}%23contact">{{ t('contact.login') }}</a>
   {% else %}
     <div class="small muted">{{ t('contact.region') }}</div>
     <div class="region-pills">{% for r in regions %}
       <a href="?region={{ r }}#contact" class="{{ 'on' if r == region }}">{{ t('contact.region_' ~ r) }}</a>{% endfor %}</div>
+    {% if phone %}<div class="guide-phone">📞 <a href="/c/guide/{{ g.id }}/whatsapp?region={{ region }}" target="_blank" rel="noopener">{{ phone }}</a></div>{% endif %}
     <div class="contact-btns">
-      {% for c in channels if c.ch != 'rednote' or g.rednote_link %}
+      {% for c in channels if c.ch != 'rednote' or g.rednote_link or demo_contacts %}
         <a class="btn small {{ '' if c.recommended else 'ghost' }}" href="/c/guide/{{ g.id }}/{{ c.ch }}?region={{ region }}" target="_blank" rel="noopener">
           {{ t('contact.ch_' ~ c.ch) }}{% if c.recommended %} · {{ t('contact.recommended') }}{% endif %}</a>
       {% endfor %}
     </div>
-    {% if g.whatsapp %}<div class="greet"><span class="muted">{{ t('contact.greet_label') }}:</span> «{{ greeting }}»</div>{% endif %}
+    {% if g.whatsapp or demo_contacts %}<div class="greet"><span class="muted">{{ t('contact.greet_label') }}:</span> «{{ greeting }}»</div>{% endif %}
     {% if g.rednote_id or g.rednote_link %}
       <div class="rednote">
         {% if g.rednote_link %}<div class="qr" id="rn-qr" data-link="{{ g.rednote_link }}"></div>{% endif %}

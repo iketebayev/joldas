@@ -270,3 +270,5 @@ input.invalid { outline: 2px solid var(--bad); }
 @media (prefers-reduced-motion: reduce) { .rec-dot { animation: none; } }
 .vm-meta { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font-size: 14px; }
 @media (max-width: 640px) { .vm-body video { max-height: 52vh; } .vm-side { padding: 14px; } }
+.guide-phone { font-size: 18px; font-weight: 700; margin: 4px 0 12px; }
+.guide-phone a { color: var(--ink); }

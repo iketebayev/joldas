@@ -2,7 +2,7 @@
 import re
 from urllib.parse import quote
 
-from ..config import APP_NAME, CHANNEL_ORDER, CIS_COUNTRIES
+from ..config import APP_NAME, CHANNEL_ORDER, CHANNELS, CIS_COUNTRIES, CONTACT_REDIRECT_URL
 from ..db import pool
 
 REGIONS = ("west", "cn", "cis")
@@ -32,6 +32,14 @@ def norm_phone(raw) -> str | None:
     if digits.startswith("8") and len(digits) == 11:  # 8 701 … → 7 701 …
         digits = "7" + digits[1:]
     return digits if 10 <= len(digits) <= 15 else None
+
+
+def fmt_phone(raw) -> str | None:
+    """+77011234567 → +7 701 123 45 67; остальные номера — как есть."""
+    d = re.sub(r"\D", "", str(raw or ""))
+    if len(d) == 11 and d[0] == "7":
+        return f"+7 {d[1:4]} {d[4:7]} {d[7:9]} {d[9:]}"
+    return ("+" + d) if d else None
 
 
 def norm_handle(raw) -> str | None:
@@ -89,7 +97,12 @@ def greeting_lang(region: str, ui_lang: str, guide_langs) -> str:
 # --- каналы гида --------------------------------------------------------------------
 
 def channels(g, region: str) -> list[dict]:
-    """Каналы, заполненные гидом, в порядке для региона; первый — рекомендуемый."""
+    """Каналы, заполненные гидом, в порядке для региона; первый — рекомендуемый.
+    В демо-режиме (CONTACT_REDIRECT_URL) показываются все каналы."""
+    if CONTACT_REDIRECT_URL:
+        out = [{"ch": ch, "handle": None} for ch in CHANNEL_ORDER[region]]
+        out[0]["recommended"] = True
+        return out
     have = {
         "whatsapp": g["whatsapp"],
         "instagram": g["instagram"],
@@ -104,6 +117,8 @@ def channels(g, region: str) -> list[dict]:
 
 
 def target_url(g, ch: str, text_lang: str) -> str | None:
+    if CONTACT_REDIRECT_URL:
+        return CONTACT_REDIRECT_URL if ch in CHANNELS else None
     if ch == "whatsapp" and g["whatsapp"]:
         return f"https://wa.me/{g['whatsapp']}?text=" + quote(GREETING[text_lang].format(app=APP_NAME))
     if ch == "instagram" and g["instagram"]:

@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 
 from ..auth import require_user
-from ..config import CURRENCIES, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
+from ..config import CONTACT_REDIRECT_URL, CURRENCIES, GUIDE_LANGS, KYC_REQUIRED, PARK_SITES, TRANSPORT
 from ..db import pool
 from .. import academy
 from ..services import fees, orders, rates, route, safety
@@ -171,12 +171,12 @@ async def detail(request: Request, rid: int):
         offers = await db.fetch(
             """SELECT o.*, u.name, u.rating, u.reviews_count, g.level, g.languages,
                       g.completed_count, g.experience_years,
-                      (g.whatsapp IS NOT NULL OR g.instagram IS NOT NULL OR g.rednote_id IS NOT NULL
+                      ($2 OR g.whatsapp IS NOT NULL OR g.instagram IS NOT NULL OR g.rednote_id IS NOT NULL
                        OR g.rednote_link IS NOT NULL OR g.x_handle IS NOT NULL) AS has_channels
                FROM offers o JOIN users u ON u.id=o.guide_id JOIN guides g ON g.user_id=o.guide_id
                WHERE o.request_id=$1 AND o.status IN ('pending','chosen')
                ORDER BY (o.status='chosen') DESC, u.rating DESC NULLS LAST, g.completed_count DESC""",
-            rid,
+            rid, bool(CONTACT_REDIRECT_URL),
         )
 
     # Контакты открываются только после подтверждения.

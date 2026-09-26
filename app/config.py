@@ -66,6 +66,9 @@ CHANNEL_ORDER = {"cn": ("rednote", "whatsapp", "instagram", "x"),
                  "cis": ("whatsapp", "instagram", "x", "rednote"),
                  "west": ("whatsapp", "instagram", "x", "rednote")}
 CIS_COUNTRIES = ("RU", "UZ", "KG", "AZ", "GE", "KZ")
+# Демо-режим связи: у всех гидов показываются номер и все каналы, а любой клик ведёт сюда.
+# Пусто — работают настоящие контакты, которые гид указал в профиле.
+CONTACT_REDIRECT_URL = os.getenv("CONTACT_REDIRECT_URL", "https://astanahub.com/ru/l/aqtau/astanahub/com")
 
 # Верификация личности и видеовизитка.
 MEDIA_DIR = os.getenv("MEDIA_DIR", "/data/media")
