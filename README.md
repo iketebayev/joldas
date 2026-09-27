@@ -1,6 +1,6 @@
 # Joldas — гиды для иностранных туристов в Мангистау
 
-**Живое демо:** https://hack.ai-lab.kz  ·  интерфейс на қазақша / русском / English
+**Живое демо:** https://joldas.ai-lab.kz  ·  интерфейс на қазақша / русском / English
 
 Хакатон **Smart City Aktau** (Mangystau Hub), трек «Туризм».
 
